@@ -1,30 +1,29 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>ktl</Name>
-  <Repository>ktl:latest</Repository>
-  <Registry/>
+  <Repository>ghcr.io/jpjoseph12/ktl:latest</Repository>
+  <Registry>https://github.com/jpjoseph12/ktl/pkgs/container/ktl</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>bash</Shell>
   <Privileged>false</Privileged>
-  <Support/>
-  <Project/>
+  <Support>https://github.com/jpjoseph12/ktl/issues</Support>
+  <Project>https://jpjoseph12.github.io/ktl/</Project>
   <Overview>KTL: shared household bills, with each person's own pay, bills and debts kept private. One container: database, accounts, web app, nightly backups and an optional Cloudflare Tunnel. After starting it, open the Web UI and follow /setup (the setup code is in the container log).</Overview>
   <Category>Productivity:</Category>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
-  <TemplateURL/>
-  <Icon/>
+  <TemplateURL>https://raw.githubusercontent.com/jpjoseph12/ktl/main/selfhost/unraid/ktl.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/jpjoseph12/ktl/main/docs/assets/logo-kettle.png</Icon>
   <ExtraParams>--restart=unless-stopped --stop-timeout=30</ExtraParams>
   <PostArgs/>
   <CPUset/>
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Requires>Build or pull the image first: see the README.</Requires>
+  <Requires/>
   <Config Name="Web UI" Target="3000" Default="8095" Mode="tcp" Description="The app, and the address a reverse proxy or the tunnel points at." Type="Port" Display="always" Required="true" Mask="false">8095</Config>
   <Config Name="Data" Target="/data" Default="/mnt/user/appdata/ktl" Mode="rw" Description="Database, generated secrets and nightly backups." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/ktl</Config>
   <Config Name="Public address" Target="KTL_SITE_URL" Default="" Mode="" Description="Optional: the address people open, e.g. https://ktl.example.com. Easier to set on the setup page; setting it here locks it." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Cloudflare Tunnel token" Target="CLOUDFLARE_TUNNEL_TOKEN" Default="" Mode="" Description="Optional, and easier on the admin page. Runs the tunnel inside this container; point its public hostname at http://localhost:3000." Type="Variable" Display="advanced" Required="false" Mask="true"/>
   <Config Name="Time zone" Target="TZ" Default="Europe/London" Mode="" Description="Used for the nightly backup time." Type="Variable" Display="advanced" Required="false" Mask="false">Europe/London</Config>
-  <Config Name="Trust X-Forwarded-For" Target="KTL_TRUST_PROXY" Default="false" Mode="" Description="Only if another reverse proxy on your network sits in front (not needed for the tunnel)." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
 </Container>

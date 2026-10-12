@@ -1,11 +1,13 @@
-# From the repository root:  docker compose -f selfhost/docker-compose.yml up -d --build
+# docker compose -f selfhost/docker-compose.yml up -d
 # Then open http://<server>:8095/setup — the setup code is in `docker logs ktl`.
+# To update: docker compose -f selfhost/docker-compose.yml pull && docker compose -f selfhost/docker-compose.yml up -d
 services:
   ktl:
-    build:
-      context: ..
-      dockerfile: selfhost/Dockerfile
-    image: ktl:latest
+    image: ghcr.io/jpjoseph12/ktl:latest
+    # To build from this checkout instead, uncomment these and add --build:
+    # build:
+    #   context: ..
+    #   dockerfile: selfhost/Dockerfile
     container_name: ktl
     restart: unless-stopped
     stop_grace_period: 30s
@@ -15,7 +17,8 @@ services:
       - ./data:/data
     environment:
       TZ: Europe/London
-      # Everything else (address, people, sign-ups, email, push, tunnel) is
-      # set on the setup and admin pages. Setting one here locks it:
+      # Everything else (address, people, sign-ups, email, push, tunnel,
+      # backups) is set on the setup and admin pages. Setting one here
+      # locks it:
       # KTL_SITE_URL: https://ktl.example.com
       # CLOUDFLARE_TUNNEL_TOKEN: ...

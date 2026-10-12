@@ -55,24 +55,24 @@ server's generated secrets, settings and nightly backups.
 
 ## Quick start
 
-You need Docker. Build the image from this repository:
-
-```bash
-docker build -f selfhost/Dockerfile -t ktl:latest .
-```
-
-Run it:
+You need Docker. Run the published image (for amd64 and arm64):
 
 ```bash
 docker run -d --name ktl --restart unless-stopped --stop-timeout 30 \
-  -p 8095:3000 -v /path/to/ktl-data:/data ktl:latest
+  -p 8095:3000 -v /path/to/ktl-data:/data ghcr.io/jpjoseph12/ktl:latest
 ```
 
-Or `docker compose -f selfhost/docker-compose.yml up -d --build`.
+Or `docker compose -f selfhost/docker-compose.yml up -d`.
 
-On **Unraid**, copy `selfhost/unraid/ktl.xml` to
-`/boot/config/plugins/dockerMan/templates-user/my-ktl.xml`. Then use
-**Docker → Add Container → Template: ktl**.
+On **Unraid**, use **Docker → Add Container** with Repository
+`ghcr.io/jpjoseph12/ktl:latest`, port 3000 and a path for `/data` — or
+copy `selfhost/unraid/ktl.xml` to
+`/boot/config/plugins/dockerMan/templates-user/my-ktl.xml` and choose
+**Template: ktl**. Unraid's "check for updates" then picks up new
+releases.
+
+To build the image yourself instead:
+`docker build -f selfhost/Dockerfile -t ktl:latest .`
 
 Then open **`http://<your-server>:8095/setup`**.
 

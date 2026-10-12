@@ -111,15 +111,13 @@
           <span class="step-num">1</span>
           <div class="step-body">
             <h3>Deploy the container</h3>
-            <p>You need Docker. Get the code, build the image, then run it with a folder mounted at <code>/data</code> for the database, secrets, settings and backups.</p>
+            <p>You need Docker. Run the published image with a folder mounted at <code>/data</code> for the database, secrets, settings and backups.</p>
             <div class="code-wrap">
-<pre class="code">git clone https://github.com/jpjoseph12/ktl.git && cd ktl
-docker build -f selfhost/Dockerfile -t ktl:latest .
-docker run -d --name ktl --restart unless-stopped --stop-timeout 30 \
-  -p 8095:3000 -v /path/to/ktl-data:/data ktl:latest</pre>
+<pre class="code">docker run -d --name ktl --restart unless-stopped --stop-timeout 30 \
+  -p 8095:3000 -v /path/to/ktl-data:/data ghcr.io/jpjoseph12/ktl:latest</pre>
               <button class="code-copy" type="button">Copy</button>
             </div>
-            <p>Or use Compose — <code>docker compose -f selfhost/docker-compose.yml up -d --build</code>. On <strong>Unraid</strong>, copy <code>selfhost/unraid/ktl.xml</code> to <code>/boot/config/plugins/dockerMan/templates-user/my-ktl.xml</code>, then use <strong>Docker → Add Container → Template: ktl</strong>.</p>
+            <p>Or use Compose — <code>docker compose -f selfhost/docker-compose.yml up -d</code>. On <strong>Unraid</strong>, go to <strong>Docker → Add Container</strong>, paste <code>https://raw.githubusercontent.com/jpjoseph12/ktl/main/selfhost/unraid/ktl.xml</code> as the template, or set Repository to <code>ghcr.io/jpjoseph12/ktl:latest</code> with port 3000 and a path for <code>/data</code>. Updates then come through Unraid’s own “check for updates”. Prefer to build it yourself? <code>docker build -f selfhost/Dockerfile -t ktl:latest .</code> from a clone of the repository.</p>
           </div>
         </div>
 

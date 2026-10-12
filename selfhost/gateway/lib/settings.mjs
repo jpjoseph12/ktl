@@ -98,6 +98,9 @@ export function update(changes) {
     const tmp = `${SETTINGS_FILE}.tmp`;
     writeFileSync(tmp, serialiseSettings(current), { mode: 0o640 });
     renameSync(tmp, SETTINGS_FILE);
+    // Two saves inside the filesystem's timestamp resolution leave the
+    // mtime unchanged, so refresh the cache here rather than trust it.
+    cache = { mtime: statSync(SETTINGS_FILE).mtimeMs, values: current };
   }
   return changed;
 }
