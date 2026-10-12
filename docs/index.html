@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KTL · run it on your own server</title>
+<meta name="description" content="Self-host KTL — shared household bills with everyone's own finances kept private. Deploy the container, claim your server, then see how it works on mobile, tablet and desktop." />
+<link rel="icon" type="image/png" href="assets/favicon.png" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="guide.css" />
+</head>
+<body>
+<div class="setup-guide">
+
+<header class="topnav">
+  <div class="container topnav-inner">
+    <a class="logo" href="./">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 9h10a4 4 0 0 1 4 4v5a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-7a2 2 0 0 1 2-2z"/>
+        <path d="M16 9V6.5a2.5 2.5 0 0 0-5 0"/><path d="M8 3.5c.8.9.8 1.6 0 2.5"/>
+      </svg>
+      KTL
+    </a>
+    <nav aria-label="Sections">
+      <a href="#need">What you need</a>
+      <a href="#setup">Set up</a>
+      <a href="#works">How it works</a>
+      <a href="#devices">Across devices</a>
+      <a href="#reach">From outside</a>
+      <a href="#running">Running it</a>
+    </nav>
+    <a class="open-link" href="https://github.com/jpjoseph12/ktl">Source on GitHub ↗</a>
+  </div>
+</header>
+
+<main>
+
+  <section class="section">
+    <div class="container">
+      <div class="hero">
+        <p class="eyebrow">Self-hosted · Android, browser and tablet</p>
+        <h1>Run KTL on your own server.</h1>
+        <p class="lead">KTL keeps shared household bills and each person’s own finances private — one container, no ads, no tracking, no bank connection, and it never moves money. This page sets your server up, then shows how the same household works on mobile, tablet and desktop.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#setup">Start the setup</a>
+          <a class="btn btn-secondary" href="#works">See how it works</a>
+          <a class="btn btn-ghost" href="https://github.com/jpjoseph12/ktl/releases">Get the Android app →</a>
+        </div>
+      </div>
+
+      <dl class="facts">
+        <div class="fact"><dt>Everything in</dt><dd>One container</dd></div>
+        <div class="fact"><dt>Household size</dt><dd>Up to six people</dd></div>
+        <div class="fact"><dt>Backups</dt><dd>Nightly, 14 kept</dd></div>
+        <div class="fact"><dt>Licence</dt><dd>AGPL-3.0</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="section" id="need">
+    <div class="container">
+      <div class="head-lg">
+        <p class="eyebrow">Before you start</p>
+        <h2>What you’ll need</h2>
+        <p>Setup takes a couple of minutes. Two things are required — the setup code and an address — and everything else can wait until later.</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card card-lg need">
+          <span class="glyph on-warm" data-icon="settings"></span>
+          <div>
+            <p class="item-title">The setup code</p>
+            <p class="item-sub">It’s in the server’s log. Run <code>docker logs ktl</code>, or open the container’s log in Unraid or Portainer, and look for “setup code”. It stops strangers on your network from claiming the server.</p>
+          </div>
+        </div>
+        <div class="card card-lg need">
+          <span class="glyph on-warm" data-icon="signal"></span>
+          <div>
+            <p class="item-title">The address people will use</p>
+            <p class="item-sub">For use away from home, put KTL behind a reverse proxy or a Cloudflare Tunnel and use that <code>https://</code> address. For your own network only, <code>http://&lt;server&gt;:8095</code> works.</p>
+          </div>
+        </div>
+        <div class="card card-lg need">
+          <span class="glyph on-warm" data-icon="users"></span>
+          <div>
+            <p class="item-title">Who you share with</p>
+            <p class="item-sub">Names and email addresses, up to six people including you. Each gets their own private space for pay and debts, and one-time sign-in links.</p>
+          </div>
+        </div>
+        <div class="card card-lg need">
+          <span class="glyph on-warm" data-icon="bell"></span>
+          <div>
+            <p class="item-title">Optional extras</p>
+            <p class="item-sub">An email server so people can reset passwords themselves, a Firebase project for push notifications, and a Cloudflare Tunnel token. All can be added later from the admin page.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="setup">
+    <div class="container">
+      <div class="head-lg">
+        <p class="eyebrow">The setup</p>
+        <h2>From <code>docker run</code> to a working household</h2>
+        <p>The first run happens in the browser. Steps 3 to 5 are the same cards as the admin page, so anything you skip here can be done there later.</p>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <div class="step-body">
+            <h3>Deploy the container</h3>
+            <p>You need Docker. Get the code, build the image, then run it with a folder mounted at <code>/data</code> for the database, secrets, settings and backups.</p>
+            <div class="code-wrap">
+<pre class="code">git clone https://github.com/jpjoseph12/ktl.git && cd ktl
+docker build -f selfhost/Dockerfile -t ktl:latest .
+docker run -d --name ktl --restart unless-stopped --stop-timeout 30 \
+  -p 8095:3000 -v /path/to/ktl-data:/data ktl:latest</pre>
+              <button class="code-copy" type="button">Copy</button>
+            </div>
+            <p>Or use Compose — <code>docker compose -f selfhost/docker-compose.yml up -d --build</code>. On <strong>Unraid</strong>, copy <code>selfhost/unraid/ktl.xml</code> to <code>/boot/config/plugins/dockerMan/templates-user/my-ktl.xml</code>, then use <strong>Docker → Add Container → Template: ktl</strong>.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-num">2</span>
+          <div class="step-body">
+            <h3>Read the setup code</h3>
+            <p>The server prints a code to its log when it starts. Five wrong tries at the setup page locks it for 15 minutes.</p>
+            <div class="code-wrap">
+              <pre class="code">docker logs ktl 2>&amp;1 | grep "setup code"</pre>
+              <button class="code-copy" type="button">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-num">3</span>
+          <div class="step-body">
+            <h3>Open the setup page and claim the server</h3>
+            <p>Go to <code>http://&lt;your-server&gt;:8095/setup</code>. One step creates the household and your own account at the same time, so a half-set-up server can’t exist: the setup code, the address, your household name, and your name, email and password. You become the household’s owner — the person who looks after the server.</p>
+
+            <div class="portal" aria-label="What the setup page asks for">
+              <div class="card card-lg stack">
+                <div class="row-between">
+                  <div>
+                    <h3 class="portal-title">Your server</h3>
+                    <p class="meta">Step 1 of 3 · at /setup</p>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="pf-code">Setup code</label>
+                  <input class="input num-input" id="pf-code" value="ABCD-1234" readonly />
+                  <span class="field-help">From the server’s log: docker logs ktl</span>
+                </div>
+                <div class="field">
+                  <label for="pf-url">Address people will use</label>
+                  <input class="input" id="pf-url" value="http://home-server:8095" readonly />
+                  <span class="field-help">You can change it later — once a tunnel or reverse proxy is in place.</span>
+                </div>
+                <div class="field">
+                  <label for="pf-house">Household name</label>
+                  <input class="input" id="pf-house" value="Flat 4" readonly />
+                </div>
+                <hr class="divider" />
+                <div class="field">
+                  <label for="pf-name">Your name</label>
+                  <input class="input" id="pf-name" value="Jordan" readonly />
+                </div>
+                <div class="field">
+                  <label for="pf-email">Your email</label>
+                  <input class="input" id="pf-email" value="jordan@example.com" readonly />
+                </div>
+                <div class="field">
+                  <label for="pf-pass">Password</label>
+                  <input class="input" id="pf-pass" type="password" value="correct-horse-battery" readonly />
+                </div>
+                <span class="btn btn-primary btn-block" aria-hidden="true">Set up the server</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-num">4</span>
+          <div class="step-body">
+            <h3>Add the people you share with</h3>
+            <p>Each person gets a one-time link: they open it, choose a password, and they’re in. No email server is needed for this. You can add or remove people later from the admin page, linked from <strong>House → Server</strong>.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-num">5</span>
+          <div class="step-body">
+            <h3>Optional extras</h3>
+            <p>Turn on sign-ups, add an email server, set up push notifications, or paste a Cloudflare Tunnel token. Skip any of these — they’re all on the admin page later.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-num">6</span>
+          <div class="step-body">
+            <h3>Give people the address</h3>
+            <p>On the Android app, the first launch asks for your server’s address; afterwards <strong>House → Server</strong> shows it. On a computer or tablet, just open the address in a browser. Everything after setup lives on <code>/admin</code>, linked from <strong>House → Server</strong> for the owner.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="works">
+    <div class="container">
+      <div class="head-lg">
+        <p class="eyebrow">What the household gets</p>
+        <h2>Shared bills, private money, one honest balance.</h2>
+        <p>The household is jointly visible by design, and everything about your own money sits behind a boundary the shared side cannot read through.</p>
+      </div>
+
+      <div class="split">
+        <article class="card card-lg stack">
+          <div class="row-between">
+            <h3>The household</h3>
+            <span class="pill is-scheduled">Both of you</span>
+          </div>
+          <p class="body-sm">Recurring bills — rent, energy, broadband, subscriptions — split equally, by percentage, or paid entirely by one person. For bills that vary, you enter what each one actually came to.</p>
+          <ul class="stack-sm">
+            <li class="body-sm">Who pays each provider, each person’s share, and who has paid.</li>
+            <li class="body-sm">One-off money lent between two people, all or part of it owed back.</li>
+            <li class="body-sm">A running balance with each person, part-payments, and live updates as things change.</li>
+            <li class="body-sm">Reminders before bills are due, scheduled on each phone.</li>
+          </ul>
+        </article>
+
+        <article class="card card-lg stack">
+          <div class="row-between">
+            <h3>Yours — private to you</h3>
+            <span class="pill is-settled">You only</span>
+          </div>
+          <p class="body-sm">A private space nobody else in the household can see, including whether you use it. Only your share of the household bills crosses inwards; nothing is ever written back.</p>
+          <ul class="stack-sm">
+            <li class="body-sm">What’s left after bills, from your pay.</li>
+            <li class="body-sm">Bills that are yours alone, and an emergency fund.</li>
+            <li class="body-sm">A debt-payoff planner — snowball or avalanche, 0% offers, a debt-free date.</li>
+            <li class="body-sm">Reading a bank export (Monzo CSV and similar) on your device to find what you could cut.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="card card-lg stack" style="margin-top: var(--space-6);">
+        <p class="eyebrow">The bit that’s different</p>
+        <h3>Two reminders, two confirmations, one closed bill.</h3>
+        <p class="body-sm cycle-note">Most splitting apps only chase the money. The awkward part of a shared house is earlier: somebody has to read the meter or say what this month’s number is. KTL treats that as its own step with its own deadline.</p>
+
+        <div class="cycle" style="margin-top: var(--space-4);">
+          <div class="cycle-step">
+            <span class="cycle-rail"><span class="cycle-dot" data-icon="pencil" data-icon-size="12"></span><span class="cycle-line"></span></span>
+            <span class="cycle-body">
+              <span class="cycle-label">Five days out · both of you file the details</span>
+              <span class="cycle-note">Readings, usage, this month’s amount. Each person ticks that they’ve shared theirs, so nobody is guessing on the day.</span>
+            </span>
+          </div>
+          <div class="cycle-step">
+            <span class="cycle-rail"><span class="cycle-dot" data-icon="send" data-icon-size="12"></span><span class="cycle-line"></span></span>
+            <span class="cycle-body">
+              <span class="cycle-label">Two days out · whoever owes sends it</span>
+              <span class="cycle-note">The reminder carries the exact amount, the responsible bill payer, their account and the reference.</span>
+            </span>
+          </div>
+          <div class="cycle-step">
+            <span class="cycle-rail"><span class="cycle-dot" data-icon="check" data-icon-size="12"></span></span>
+            <span class="cycle-body">
+              <span class="cycle-label">On arrival · the bill payer confirms</span>
+              <span class="cycle-note">Only their confirmation closes the line and clears it from the balance. Neither step closes on a notification being seen — each closes on a person tapping a confirmation.</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top: var(--space-6);">
+        <article class="card card-lg stack">
+          <div class="row-between">
+            <h3>Chase and confirm</h3>
+            <span class="pill is-scheduled">Default</span>
+          </div>
+          <p class="body-sm">Both of you are prompted and both of you confirm. Best when money genuinely moves between you every month.</p>
+          <ul class="stack-sm">
+            <li class="body-sm">Details reminder five days out, money reminder two days out.</li>
+            <li class="body-sm">Anything unconfirmed gets one nudge after 24 hours.</li>
+          </ul>
+        </article>
+        <article class="card card-lg stack">
+          <div class="row-between">
+            <h3>Tracking only</h3>
+            <span class="pill is-settled">No chasing</span>
+          </div>
+          <p class="body-sm">KTL becomes a shared ledger rather than a chaser, for couples who settle up their own way and just want the numbers to agree.</p>
+          <ul class="stack-sm">
+            <li class="body-sm">Costs, split and running balance still tracked in full.</li>
+            <li class="body-sm">Say you’ve paid and the line closes on the spot.</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!--GALLERY-->
+
+  <section class="section" id="reach">
+    <div class="container">
+      <div class="head-lg">
+        <p class="eyebrow">Away from home</p>
+        <h2>Reaching it from outside your network</h2>
+      </div>
+
+      <div class="grid-2">
+        <article class="card card-lg stack">
+          <h3>Cloudflare Tunnel</h3>
+          <p class="body-sm">No open ports needed. Create a tunnel in Cloudflare Zero Trust, add a public hostname pointing at the service, then paste the token on the admin page.</p>
+          <ul class="stack-sm">
+            <li class="body-sm">Zero Trust → <strong>Networks → Tunnels</strong> → create a tunnel.</li>
+            <li class="body-sm">Add a public hostname (e.g. <code>ktl.example.com</code>) with service <code>http://localhost:3000</code>.</li>
+            <li class="body-sm">Paste the tunnel’s token under <strong>Remote access</strong> on the admin page.</li>
+            <li class="body-sm">Set the address to <code>https://ktl.example.com</code>.</li>
+          </ul>
+        </article>
+
+        <article class="card card-lg stack">
+          <h3>Reverse proxy</h3>
+          <p class="body-sm">Nginx Proxy Manager, SWAG, Caddy or Traefik works too: proxy your hostname to <code>http://&lt;server&gt;:8095</code> with HTTPS.</p>
+          <ul class="stack-sm">
+            <li class="body-sm">Live updates use server-sent events — turn off response buffering on the proxy.</li>
+            <li class="body-sm">If the proxy is on another machine, turn on <strong>Trust a reverse proxy</strong> on the admin page so the server sees real client addresses (used for sign-in rate limits).</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="running">
+    <div class="container">
+      <div class="head-lg">
+        <p class="eyebrow">Day two</p>
+        <h2>Running it</h2>
+      </div>
+
+      <div class="split">
+        <article class="card card-lg stack">
+          <h3>Backups and restore</h3>
+          <p class="body-sm">Each night a consistent copy of everything, accounts included, goes into <code>/data/backups</code>. The last 14 are kept, and the time and number kept can be changed on the admin page. Backups can be downloaded, and restored, from there too. That folder is what your own backups should keep — copying <code>/data/postgres</code> while the server runs isn’t reliable.</p>
+          <p class="body-sm">From a terminal instead:</p>
+          <div class="code-wrap">
+            <pre class="code">docker exec -it ktl ktl-admin restore /data/backups/&lt;file&gt;.dump --yes</pre>
+            <button class="code-copy" type="button">Copy</button>
+          </div>
+          <p class="body-sm">It saves the current data first, and runs in a single transaction.</p>
+        </article>
+
+        <article class="card card-lg stack">
+          <h3>Updating and the terminal</h3>
+          <p class="body-sm">To update, pull the latest code, rebuild the image and recreate the container; database changes apply on start. From a terminal, <code>ktl-admin</code> covers the rest:</p>
+          <div class="code-wrap">
+            <pre class="code">docker exec -it ktl ktl-admin help</pre>
+            <button class="code-copy" type="button">Copy</button>
+          </div>
+          <p class="body-sm"><code>setup-code</code>, <code>status</code> and <code>users</code>; <code>reset-link</code> and <code>set-password</code> (for when there’s no email server); <code>backup</code>, <code>restore</code> and <code>import-json</code>. Health lives at <code>/healthz</code>, reporting the database, sign-in and data API.</p>
+        </article>
+      </div>
+
+      <article class="card card-lg stack" style="margin-top: var(--space-6);">
+        <h3>Settings, and where they live</h3>
+        <p class="body-sm" style="max-width: 68ch;">Everything is on the setup and admin pages. You can also set any of these on the container, which locks that setting — the admin page then shows it as “set by the container”.</p>
+        <div style="overflow-x: auto;">
+          <table class="env-table">
+            <thead>
+              <tr><th>Variable</th><th>What it does</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>KTL_SITE_URL</td><td>The address people open, e.g. https://ktl.example.com.</td></tr>
+              <tr><td>KTL_ALLOW_SIGNUP</td><td>true to let anyone who reaches the server create an account.</td></tr>
+              <tr><td>KTL_SMTP_HOST, _PORT, _USER, _PASS, _SENDER, _SENDER_NAME</td><td>Email, for password resets.</td></tr>
+              <tr><td>CLOUDFLARE_TUNNEL_TOKEN</td><td>Runs a Cloudflare Tunnel inside the container.</td></tr>
+              <tr><td>KTL_FCM_SERVICE_ACCOUNT</td><td>A Firebase service-account key (JSON), for push.</td></tr>
+              <tr><td>KTL_TRUST_PROXY</td><td>true behind a reverse proxy on another machine.</td></tr>
+              <tr><td>KTL_BACKUP_KEEP, KTL_BACKUP_HOUR</td><td>Nightly backups to keep (14) and the hour to take them (3).</td></tr>
+              <tr><td>KTL_TIMEZONE</td><td>Time zone for the backup time. Defaults to Europe/London.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer class="pagefoot">
+  <div class="container row-between">
+    <p>
+      KTL is self-hosted and open source under AGPL-3.0 — use, change and host it freely; if you run a modified version for other people, share your changes with them.
+      Built on PostgreSQL, GoTrue, PostgREST, supabase-js, s6-overlay, React, Vite and Capacitor.
+      People, balances, rates and account details shown are demonstration data.
+    </p>
+    <p class="num" style="text-align: right;"><a href="https://github.com/jpjoseph12/ktl">github.com/jpjoseph12/ktl</a></p>
+  </div>
+</footer>
+
+</div>
+<script src="guide.js"></script>
+</body>
+</html>

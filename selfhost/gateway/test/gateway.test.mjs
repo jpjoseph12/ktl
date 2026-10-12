@@ -91,10 +91,10 @@ describe('gateway routing', () => {
     assert.equal(res.headers.get('cache-control'), 'no-cache');
   });
 
-  it('lets only its own pages frame the app (the setup guide’s device previews)', async () => {
+  it('never lets another page frame the app', async () => {
     const res = await fetch(`${base}/android/home`);
-    assert.match(res.headers.get('content-security-policy'), /frame-ancestors 'self'/);
-    assert.equal(res.headers.get('x-frame-options'), 'SAMEORIGIN');
+    assert.match(res.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+    assert.equal(res.headers.get('x-frame-options'), 'DENY');
   });
 
   it('caches hashed assets for good', async () => {

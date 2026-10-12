@@ -10,6 +10,10 @@ bills, savings and debts, which nobody else in the household can see.
 It's self-hosted: one container on your own server holds all of it. It has
 no ads, no tracking and no bank connection, and it never moves money.
 
+**Setting up a server? Start with the guide:
+[jpjoseph12.github.io/ktl](https://jpjoseph12.github.io/ktl/)** (the same
+page lives in [`docs/`](docs/index.html)).
+
 - **Shared bills.** Rent, energy, broadband and subscriptions: weekly,
   monthly or yearly, split equally, by percentage, or paid by one person.
   For bills that vary, you enter what each one actually came to.

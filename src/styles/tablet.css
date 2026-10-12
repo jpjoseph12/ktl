@@ -214,3 +214,27 @@
   transform: translate(-50%, -46%) scale(0.96);
 }
 .tablet-frame .md-dialog.open { transform: translate(-50%, -50%) scale(1); }
+
+/* ── React only: setup and admin on a computer (PortalFrame) ──────────
+   The tablet shell's sidebar carries the steps or sections; the main
+   column stays readable rather than spanning a wide monitor. */
+.portal-mark { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; }
+.portal-main { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-8) var(--space-6) var(--space-12); }
+.portal-col { max-width: 720px; margin-inline: auto; display: flex; flex-direction: column; gap: var(--space-6); }
+.portal-col.wide { max-width: 1040px; }
+.portal-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: var(--space-6); align-items: start; }
+.portal-steps { margin: 0; padding: 0; list-style: none; }
+.portal-steps .tablet-nav-item { cursor: default; }
+.portal-steps .tablet-nav-item:hover { background: none; color: var(--fg-2); }
+.portal-steps .tablet-nav-item[aria-current="step"] { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: var(--elev-ring); border-radius: var(--radius-pill); }
+.portal-step-num {
+  width: 24px; height: 24px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: 50%; border: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+}
+.portal-steps [aria-current="step"] .portal-step-num { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+.portal-steps [data-done] .portal-step-num { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+@media (max-width: 1180px) {
+  .portal-split { grid-template-columns: 1fr; }
+}

@@ -3,69 +3,85 @@ import { Link } from 'react-router-dom';
 import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import { PasswordField, authMessage } from './android/Onboarding';
-import PortalFrame, { useAdmin } from './portal/PortalFrame';
-import SetupGuide from './SetupGuide';
-import useIsTablet from '../lib/useIsTablet';
+import PortalFrame, { StepRail, useAdmin } from './portal/PortalFrame';
 import PeopleCard from './portal/PeopleCard';
 import { AppCard, EmailCard, PushCard, SignupCard, TunnelCard } from './portal/SettingsCards';
+import useIsTablet from '../lib/useIsTablet';
 import { SERVER_URL } from '../lib/api';
 import { MIN_PASSWORD_LENGTH, validEmail, validName, validPassword } from '../lib/validation';
 
 /* First run, in the browser: everything a new KTL server needs, in order.
  *
- *   1. what you'll need
- *   2. the setup code (from the server's log), the address, your household
- *      and your own account — one step, so a half-set-up server can't exist
- *   3. the people you share with
- *   4. optional extras: sign-ups, email, push, a Cloudflare Tunnel
- *   5. done: the address to give the app
+ *   1. your server: the setup code (from the server's log), the address,
+ *      your household and your own account — one step, so a half-set-up
+ *      server can't exist
+ *   2. the people you share with
+ *   3. optional extras: sign-ups, email, push, a Cloudflare Tunnel
+ *   4. done: the address to give the app
  *
- * Steps 3–5 are the same cards as the admin page, so anything skipped here
- * can be done there later. On a computer, steps 1–2 are the full setup
- * guide (SetupGuide) with the claim form in it; the rest is the same
- * centred column as on a phone. */
+ * On a computer the steps run down the left rail and "what you'll need"
+ * sits beside the form; on a phone "what you'll need" is its own first
+ * screen. Steps 2–3 are the same cards as the admin page, so anything
+ * skipped here can be done there later. How to get a server running in the
+ * first place is the guide in docs/, not here. */
+const STEPS = [
+  { id: 'claim', label: 'Your server' },
+  { id: 'people', label: 'People' },
+  { id: 'extras', label: 'Extras' },
+  { id: 'done', label: 'Done' }
+];
+
+const NEED = [
+  ['settings', 'The setup code', <>It’s in the server’s log. Run <code>docker logs ktl</code>, or open the container’s log in Unraid or Portainer, and look for “setup code”. It stops strangers on your network from claiming the server.</>],
+  ['signal', 'The address people will use', <>For use away from home, put KTL behind a reverse proxy or a Cloudflare Tunnel and use that https:// address. For your own network only, this page’s address works.</>],
+  ['users', 'Who you share with', <>Names and email addresses, up to six people including you. Each gets their own private space for pay and debts, and a one-time invite.</>],
+  ['bell', 'Optional extras', <>An email server so people can reset passwords themselves, a Firebase project for push notifications, and a Cloudflare Tunnel token. All can be added later from the admin page.</>]
+];
+
 export default function Setup() {
   const [status, setStatus] = useState(null);
   const [step, setStep] = useState('welcome');
-  const wide = useIsTablet();
+  const desktop = useIsTablet();
 
   useEffect(() => {
     fetch(`${SERVER_URL}/api/setup`).then((r) => r.json()).then(setStatus).catch(() => setStatus({ ready: false }));
   }, []);
 
-  if (wide && step === 'welcome') {
-    const claimed = () => { window.scrollTo(0, 0); setStep('people'); };
-    return (
-      <SetupGuide
-        ready={Boolean(status?.ready)}
-        claim={(
-          <div className="card card-lg stack">
-            <div className="row-between">
-              <div>
-                <h3 className="portal-title">{status?.ready ? 'This server is set up' : 'Your server'}</h3>
-                <p className="meta">{status?.ready ? 'Everything else is on the admin page, for the person who set it up.' : 'Step 1 of 3 · at /setup'}</p>
-              </div>
-            </div>
-            {status?.ready ? <SetUpLinks /> : <ClaimForm onDone={claimed} />}
-          </div>
-        )}
-      />
-    );
-  }
+  const go = (next) => { setStep(next); window.scrollTo?.(0, 0); };
+  const rail = <StepRail steps={STEPS} current={step === 'welcome' ? 'claim' : step} />;
 
   if (status?.ready && step === 'welcome') {
     return (
-      <PortalFrame title="This server is set up" sub="Everything else is done from the admin page, as the person who set it up.">
+      <PortalFrame title="This server is set up" sub="Everything else is on the admin page, for the person who set it up.">
         <SetUpLinks />
       </PortalFrame>
     );
   }
 
-  if (step === 'welcome') return <Welcome onNext={() => setStep('claim')} />;
-  if (step === 'claim') return <Claim onDone={() => setStep('people')} />;
-  if (step === 'people') return <AfterClaim step="people" onNext={() => setStep('extras')} />;
-  if (step === 'extras') return <AfterClaim step="extras" onNext={() => setStep('done')} />;
-  return <Done />;
+  if (step === 'welcome' && !desktop) return <Welcome onNext={() => go('claim')} />;
+
+  if (step === 'welcome' || step === 'claim') {
+    return (
+      <PortalFrame
+        title="Your server"
+        sub={desktop ? 'Step 1 of 3 — you’ll look after this server: adding people and changing settings.' : 'Step 1 of 3'}
+        rail={rail}
+        wide={desktop}
+      >
+        {desktop ? (
+          <div className="portal-split">
+            <section className="card card-lg"><ClaimForm onDone={() => go('people')} /></section>
+            <NeedList />
+          </div>
+        ) : (
+          <ClaimForm onDone={() => go('people')} />
+        )}
+      </PortalFrame>
+    );
+  }
+  if (step === 'people') return <AfterClaim step="people" rail={rail} onNext={() => go('extras')} />;
+  if (step === 'extras') return <AfterClaim step="extras" rail={rail} onNext={() => go('done')} />;
+  return <Done rail={rail} />;
 }
 
 function SetUpLinks() {
@@ -77,38 +93,30 @@ function SetUpLinks() {
   );
 }
 
-function Welcome({ onNext }) {
-  const need = [
-    ['settings', 'The setup code', <>It’s in the server’s log. Run <code>docker logs ktl</code>, or open the container’s log in Unraid or Portainer, and look for “setup code”. It stops strangers on your network from claiming the server.</>],
-    ['signal', 'The address people will use', <>For use away from home, put KTL behind a reverse proxy or a Cloudflare Tunnel and use that https:// address. For your own network only, this page’s address works.</>],
-    ['users', 'Who you share with', <>Names and email addresses, up to six people including you. Each gets their own private space for pay and debts, and one-time sign-in links.</>],
-    ['bell', 'Optional extras', <>An email server so people can reset passwords themselves, a Firebase project for push notifications, and a Cloudflare Tunnel token. All can be added later from the admin page.</>]
-  ];
+function NeedList() {
   return (
-    <PortalFrame title="Set up KTL" sub="Shared household bills, with each person’s own finances kept private. This takes a couple of minutes.">
-      <section className="stack">
-        <div className="section-head"><h2>What you’ll need</h2></div>
-        <div className="list">
-          {need.map(([icon, title, body]) => (
-            <div className="item" key={title}>
-              <span className="glyph on-warm"><Icon name={icon} size={18} /></span>
-              <span className="grow">
-                <span className="item-title" style={{ display: 'block' }}>{title}</span>
-                <span className="item-sub">{body}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-      <button className="btn btn-primary btn-block" onClick={onNext}>Start</button>
-    </PortalFrame>
+    <section className="stack">
+      <div className="section-head"><h2>What you’ll need</h2></div>
+      <div className="list">
+        {NEED.map(([icon, title, body]) => (
+          <div className="item" key={title}>
+            <span className="glyph on-warm"><Icon name={icon} size={18} /></span>
+            <span className="grow">
+              <span className="item-title" style={{ display: 'block' }}>{title}</span>
+              <span className="item-sub">{body}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
-function Claim({ onDone }) {
+function Welcome({ onNext }) {
   return (
-    <PortalFrame title="Your server" sub="Step 1 of 3 — you’ll look after this server: adding people and changing settings.">
-      <ClaimForm onDone={onDone} />
+    <PortalFrame title="Set up KTL" sub="Shared household bills, with each person’s own finances kept private. This takes a couple of minutes.">
+      <NeedList />
+      <button className="btn btn-primary btn-block" onClick={onNext}>Start</button>
     </PortalFrame>
   );
 }
@@ -179,11 +187,11 @@ function ClaimForm({ onDone }) {
   );
 }
 
-function AfterClaim({ step, onNext }) {
+function AfterClaim({ step, rail, onNext }) {
   const admin = useAdmin();
   if (step === 'people') {
     return (
-      <PortalFrame title="Who you share with" sub="Step 2 of 3 — add everyone now, or later from House → Server.">
+      <PortalFrame title="Who you share with" sub="Step 2 of 3 — add everyone now, or later from the admin page." rail={rail}>
         {admin.error && <p className="hint"><Icon name="alert" size={16} /><span>{admin.error.message}</span></p>}
         <PeopleCard admin={admin} />
         <button className="btn btn-primary btn-block" onClick={onNext}>Next</button>
@@ -191,7 +199,7 @@ function AfterClaim({ step, onNext }) {
     );
   }
   return (
-    <PortalFrame title="Optional extras" sub="Step 3 of 3 — skip any of these; they’re all on the admin page later.">
+    <PortalFrame title="Optional extras" sub="Step 3 of 3 — skip any of these; they’re all on the admin page later." rail={rail}>
       <SignupCard admin={admin} />
       <EmailCard admin={admin} />
       <PushCard admin={admin} />
@@ -201,15 +209,22 @@ function AfterClaim({ step, onNext }) {
   );
 }
 
-function Done() {
+function Done({ rail }) {
   const admin = useAdmin();
   const url = admin.data?.siteUrl || SERVER_URL;
   return (
-    <PortalFrame title="You’re set up" sub="Your household’s KTL is ready.">
+    <PortalFrame title="You’re set up" sub="Your household’s KTL is ready." rail={rail}>
       <AppCard siteUrl={url} />
       <section className="stack-sm">
+        <div className="section-head"><h2>What’s next</h2></div>
+        <ul className="stack-sm">
+          <li className="body-sm">Open KTL to add your first shared bill — a short welcome walks you through it.</li>
+          <li className="body-sm">Everything on this server — people, address, email, backups — is on the admin page, linked from House → Server.</li>
+        </ul>
+      </section>
+      <section className="stack-sm">
         <Link className="btn btn-primary btn-block" to="/android/home">Open KTL</Link>
-        <Link className="btn btn-secondary btn-block" to="/admin">People and server settings</Link>
+        <Link className="btn btn-secondary btn-block" to="/admin">Open the admin page</Link>
       </section>
     </PortalFrame>
   );

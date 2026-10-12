@@ -23,6 +23,7 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: node scripts/verify-release.mjs --bundle
+      - run: node scripts/build-docs.mjs --check
 
       - name: Server (gateway) tests
         working-directory: selfhost/gateway

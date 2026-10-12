@@ -1,6 +1,6 @@
-/* Setup guide (/setup on a computer) — layout only. Every value comes from
-   tokens.css. Ported from the design's setup.html; every rule is scoped
-   to .setup-guide so its page-level class names stay out of the app. */
+/* KTL guide page (docs/, served by GitHub Pages) — layout only. Every value
+   comes from tokens.css, copied from the app by scripts/build-docs.mjs.
+   Ported from the design's setup.html; scoped to .setup-guide. */
 .setup-guide { display: block; min-height: 100vh; background: var(--bg); }
 .setup-guide .container { max-width: var(--container-max); margin-inline: auto; padding-inline: var(--container-gutter-desktop); }
 .setup-guide .section { padding-block: clamp(48px, 7vw, var(--section-y-desktop)); }

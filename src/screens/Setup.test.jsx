@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -95,7 +95,7 @@ describe('Setup — first run in the browser', () => {
   });
 });
 
-describe('Setup — on a computer, the full guide', () => {
+describe('Setup — on a computer', () => {
   beforeEach(() => {
     apiFetch.mockReset();
     apiFetch.mockResolvedValue(OVERVIEW);
@@ -105,14 +105,21 @@ describe('Setup — on a computer, the full guide', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('shows the guide with the real setup form in step 3, then carries on as a column', async () => {
+  it('opens straight on the form, with what you’ll need beside it and the steps down the side', async () => {
+    server();
+    renderSetup();
+    expect(await screen.findByLabelText('Setup code')).toBeInTheDocument();
+    expect(screen.getByText('What you’ll need')).toBeInTheDocument();
+    const steps = screen.getByRole('list', { name: 'Setup steps' });
+    expect(within(steps).getByText('Your server').closest('li')).toHaveAttribute('aria-current', 'step');
+    expect(screen.queryByText(/docker build/)).not.toBeInTheDocument();
+  });
+
+  it('claims the server, then moves the rail on to People', async () => {
     const user = userEvent.setup();
     const fetchMock = server();
     renderSetup();
-    expect(await screen.findByRole('heading', { name: 'Run KTL on your own server.' })).toBeInTheDocument();
-    expect(screen.getByText('Step 1 of 3 · at /setup')).toBeInTheDocument();
-
-    await user.type(screen.getByLabelText('Setup code'), 'ABCD-EF23');
+    await user.type(await screen.findByLabelText('Setup code'), 'ABCD-EF23');
     await user.type(screen.getByLabelText('Household name'), 'Flat 4');
     await user.type(screen.getByLabelText('Your name'), 'Alex Rivera');
     await user.type(screen.getByLabelText('Your email'), 'alex@example.com');
@@ -121,18 +128,9 @@ describe('Setup — on a computer, the full guide', () => {
 
     expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/api/setup/claim'))).toBe(true);
     expect(await screen.findByText('Who you share with')).toBeInTheDocument();
-  });
-
-  it('runs the real app in all three device frames, on the screen you pick', async () => {
-    const user = userEvent.setup();
-    server();
-    renderSetup();
-    await screen.findByRole('heading', { name: 'Run KTL on your own server.' });
-    const frames = () => ['KTL on an Android phone', 'KTL on an Android tablet', 'KTL in a desktop browser'].map((t) => screen.getByTitle(t));
-    frames().forEach((f) => expect(f).toHaveAttribute('src', '/android/home'));
-
-    await user.click(screen.getByRole('tab', { name: 'Balance' }));
-    frames().forEach((f) => expect(f).toHaveAttribute('src', '/android/settle'));
+    const steps = screen.getByRole('list', { name: 'Setup steps' });
+    expect(within(steps).getByText('People').closest('li')).toHaveAttribute('aria-current', 'step');
+    expect(within(steps).getByText('Your server').closest('li')).toHaveAttribute('data-done', 'true');
   });
 
   it('points to logging in and the admin page once the server is set up', async () => {
@@ -140,6 +138,6 @@ describe('Setup — on a computer, the full guide', () => {
     renderSetup();
     expect(await screen.findByText('This server is set up')).toBeInTheDocument();
     expect(screen.queryByLabelText('Setup code')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Log in to KTL' })[0]).toHaveAttribute('href', '/android/onboarding');
+    expect(screen.getByRole('link', { name: 'Log in to KTL' })).toHaveAttribute('href', '/android/onboarding');
   });
 });
