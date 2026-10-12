@@ -133,12 +133,25 @@ export function WalkthroughProvider({ children }) {
   const active = !!step;
   const stepIndex = active ? ORDER.indexOf(stepId) : -1;
 
+  /* The next step to actually show: ones already done are passed over
+     straight away, so a household that's set up doesn't watch the tour
+     flick through screens it has no need of. */
+  const resolve = useCallback((id) => {
+    let nextId = id;
+    for (let guard = 0; nextId && guard < ORDER.length; guard++) {
+      const s = STEPS[nextId];
+      if (!s?.doneWhen || !s.doneWhen(K, M)) break;
+      nextId = typeof s.next === 'function' ? s.next(K, M) : s.next;
+    }
+    return nextId || null;
+  }, [K, M]);
+
   const advance = useCallback((fromId) => {
     const current = STEPS[fromId];
     if (!current) return;
     const nextId = typeof current.next === 'function' ? current.next(K, M) : current.next;
-    setStepId(nextId || null);
-  }, [K, M]);
+    setStepId(resolve(nextId));
+  }, [K, M, resolve]);
 
   const next = useCallback(() => {
     if (stepId) advance(stepId);
@@ -153,15 +166,20 @@ export function WalkthroughProvider({ children }) {
     setStepId('welcome');
   }, []);
 
-  /* Auto-start once, for a brand-new household, after the first sign-in. */
+  /* Auto-start once, for a brand-new household, after the first sign-in —
+     but only once the household has really loaded (until then it looks
+     empty, which used to start the tour for households with bills), and
+     only inside the app itself, never over setup, admin or sign-in. */
+  const householdLoaded = !K.loading && !!K.data.household?.id && !M.loading;
+  const inApp = location.pathname.startsWith('/android/') && location.pathname !== '/android/onboarding';
   useEffect(() => {
-    if (!user || K.loading || active) return;
+    if (!user || !householdLoaded || !inApp || active) return;
     if (hasSeen(user.id)) return;
-    if (K.data.bills.length > 0 || K.data.lending.length > 0) return;
     markSeen(user.id);
+    if (K.data.bills.length > 0 || K.data.lending.length > 0) return;
     setStepId('welcome');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, K.loading]);
+  }, [user, householdLoaded, inApp]);
 
   /* Keep the browser on whichever screen the active step belongs to. */
   useEffect(() => {
@@ -170,8 +188,8 @@ export function WalkthroughProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepId]);
 
-  /* Skip a step immediately if it's already satisfied, and auto-advance the
-     moment the user actually completes the current step's real action. */
+  /* Auto-advance the moment the person actually completes the current
+     step's real action (steps already done are skipped by resolve()). */
   useEffect(() => {
     if (!step || !step.doneWhen) return;
     if (step.doneWhen(K, M)) {

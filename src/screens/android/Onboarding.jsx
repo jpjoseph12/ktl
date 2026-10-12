@@ -52,6 +52,21 @@ export function authMessage(err, fallback) {
   }
 }
 
+/* For the person who runs the server, who has nobody to ask: set it from
+   the server itself. */
+function OwnerReset() {
+  return (
+    <div className="hint splash-form">
+      <Icon name="settings" size={16} />
+      <span>
+        <strong>Run this server yourself?</strong> Open its console (in Unraid: Docker → ktl → Console) and run{' '}
+        <code>ktl-admin set-password you@example.com</code> with your email — it asks for the new password. From a terminal,
+        put <code>docker exec -it ktl</code> in front.
+      </span>
+    </div>
+  );
+}
+
 export function PasswordField({ id, label, value, onChange, invalid, help, autoComplete }) {
   const [shown, setShown] = useState(false);
   return (
@@ -288,6 +303,7 @@ function OnboardingBody() {
                   <span>This server can’t send email, so ask whoever runs it for a set-password link — they can make one under People and server settings. It opens straight to a screen where you choose your password.</span>
                 </p>
               )}
+              {!canEmail && <OwnerReset />}
               <button className="btn btn-ghost btn-block" onClick={() => go('signin')}>Back to log in</button>
             </div>
           </section>
@@ -307,6 +323,8 @@ function OnboardingBody() {
                   : 'This KTL server can’t send email, so ask whoever runs it for a reset link. It opens straight to a new-password screen.'}
               </p>
             </div>
+
+            {!canEmail && <OwnerReset />}
 
             {canEmail && (
               <form className="splash-form stack" onSubmit={(e) => { e.preventDefault(); submitForgot(); }}>

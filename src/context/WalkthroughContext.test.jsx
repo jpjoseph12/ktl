@@ -11,16 +11,16 @@ vi.mock('./KettleContext', () => ({ useKettle: vi.fn() }));
 vi.mock('./PrivateContext', () => ({ usePrivate: vi.fn() }));
 
 function mockK(overrides = {}) {
-  return { loading: false, partner: null, data: { bills: [], lending: [] }, ...overrides };
+  return { loading: false, partner: null, data: { household: { id: 'h1' }, bills: [], lending: [] }, ...overrides };
 }
 function mockM(overrides = {}) {
-  return { state: { income: 0, debtModule: false, debts: [], personal: [] }, ...overrides };
+  return { loading: false, state: { income: 0, debtModule: false, debts: [], personal: [] }, ...overrides };
 }
 
-function setup() {
+function setup(path = '/android/home') {
   return renderHook(() => useWalkthrough(), {
     wrapper: ({ children }) => (
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[path]}>
         <WalkthroughProvider>{children}</WalkthroughProvider>
       </MemoryRouter>
     )
@@ -42,9 +42,35 @@ describe('WalkthroughContext', () => {
   });
 
   it('does not auto-start for a household that already has bills', () => {
-    useKettle.mockReturnValue(mockK({ data: { bills: [{ id: 'b1' }], lending: [] } }));
+    useKettle.mockReturnValue(mockK({ data: { household: { id: 'h1' }, bills: [{ id: 'b1' }], lending: [] } }));
     const { result } = setup();
     expect(result.current.active).toBe(false);
+  });
+
+  it('waits for the household to load — an empty-looking household while loading never starts it', () => {
+    useKettle.mockReturnValue(mockK({ loading: false, data: { household: { id: null }, bills: [], lending: [] } }));
+    const { result, rerender } = setup();
+    expect(result.current.active).toBe(false);
+
+    useKettle.mockReturnValue(mockK({ data: { household: { id: 'h1' }, bills: [{ id: 'b1' }], lending: [] } }));
+    rerender();
+    expect(result.current.active).toBe(false);
+    expect(localStorage.getItem('ktl:walkthrough-seen:u1')).toBe('1');
+  });
+
+  it('never starts over the setup or admin pages', () => {
+    expect(setup('/setup').result.current.active).toBe(false);
+    expect(setup('/admin/people').result.current.active).toBe(false);
+  });
+
+  it('passes straight over steps that are already done, instead of flicking through them', () => {
+    localStorage.setItem('ktl:walkthrough-seen:u1', '1');
+    useKettle.mockReturnValue(mockK({ partner: { id: 'p1' }, data: { household: { id: 'h1' }, bills: [{ id: 'b1' }], lending: [] } }));
+    usePrivate.mockReturnValue(mockM({ state: { income: 2000, debtModule: false, debts: [], personal: [] } }));
+    const { result } = setup();
+    act(() => result.current.restart());
+    act(() => result.current.next()); // welcome -> (people, first bill and pay all done) toggle-debt
+    expect(result.current.step.title).toMatch(/track a card or loan/i);
   });
 
   it('does not auto-start twice for the same user', () => {
