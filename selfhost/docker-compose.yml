@@ -1,0 +1,21 @@
+# From the repository root:  docker compose -f selfhost/docker-compose.yml up -d --build
+# Then open http://<server>:8095/setup — the setup code is in `docker logs ktl`.
+services:
+  ktl:
+    build:
+      context: ..
+      dockerfile: selfhost/Dockerfile
+    image: ktl:latest
+    container_name: ktl
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ports:
+      - "8095:3000"
+    volumes:
+      - ./data:/data
+    environment:
+      TZ: Europe/London
+      # Everything else (address, people, sign-ups, email, push, tunnel) is
+      # set on the setup and admin pages. Setting one here locks it:
+      # KTL_SITE_URL: https://ktl.example.com
+      # CLOUDFLARE_TUNNEL_TOKEN: ...

@@ -1,0 +1,13 @@
+{
+  "name": "ktl-gateway",
+  "private": true,
+  "type": "module",
+  "description": "Front door for self-hosted KTL: web UI, API proxy, account deletion, live updates, push, backups.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}

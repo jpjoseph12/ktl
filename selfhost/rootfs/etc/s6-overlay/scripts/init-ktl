@@ -1,0 +1,42 @@
+#!/command/with-contenv bash
+# First thing on every boot: the data volume's layout, and the secrets the
+# services share. Secrets are generated once and kept in /data, so they
+# survive image upgrades; nothing in them is ever needed by a person.
+set -euo pipefail
+
+mkdir -p /data/postgres /data/backups /data/import /data/push /data/config /var/run/postgresql
+chown postgres:postgres /data/postgres /data/backups /data/import /data/push /data/config /var/run/postgresql
+chmod 750 /data/config
+# Written by the admin page (the gateway runs as postgres).
+touch /data/config/settings.env
+chown postgres:postgres /data/config/settings.env
+chmod 640 /data/config/settings.env
+chmod 700 /data/postgres
+
+if [ ! -s /data/secrets.env ]; then
+  gen() { head -c 64 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 48; }
+  umask 077
+  {
+    echo "# Generated on first start. Losing this file signs everyone out;"
+    echo "# the database keeps working (passwords are re-applied on boot)."
+    echo "KTL_JWT_SECRET=$(gen)"
+    echo "KTL_AUTHENTICATOR_PASSWORD=$(gen)"
+    echo "KTL_AUTH_ADMIN_PASSWORD=$(gen)"
+  } > /data/secrets.env
+  echo "ktl: generated /data/secrets.env"
+fi
+# The code that unlocks the setup page the first time. Added separately so
+# servers created before it existed get one too.
+if ! grep -q "^KTL_SETUP_CODE=" /data/secrets.env; then
+  code="$(head -c 1024 /dev/urandom | tr -dc "A-HJ-NP-Z2-9" | head -c 8)"
+  echo "KTL_SETUP_CODE=${code:0:4}-${code:4:4}" >> /data/secrets.env
+fi
+echo "ktl: setup code: $(sed -n "s/^KTL_SETUP_CODE=//p" /data/secrets.env)  (open /setup in a browser to set up this server)"
+
+chown root:postgres /data/secrets.env
+chmod 640 /data/secrets.env
+
+case "${KTL_SITE_URL:-}" in
+  ""|http://*|https://*) ;;
+  *) echo "ktl: KTL_SITE_URL must be the full address people open, e.g. https://ktl.example.com" >&2; exit 1 ;;
+esac

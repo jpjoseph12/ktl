@@ -1,0 +1,5 @@
+# Files that run inside the Linux container must keep LF endings, even when
+# checked out on Windows (a CRLF shebang line fails with "not found").
+selfhost/** text eol=lf
+db/** text eol=lf
+*.sh text eol=lf

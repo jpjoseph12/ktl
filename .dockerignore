@@ -1,0 +1,13 @@
+# Only what selfhost/Dockerfile copies. Above all, never .env (the
+# developer's own settings) or android/ (keystores).
+**
+!package.json
+!package-lock.json
+!index.html
+!vite.config.js
+!public/**
+!src/**
+!selfhost/**
+!db/**
+src/**/*.test.*
+selfhost/gateway/node_modules

@@ -1,0 +1,71 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+# The shared demo login — committed on purpose so CI can build the demo
+# APK; it's only ever compiled into the demo flavor (see .env.demo).
+!.env.demo
+# Self-hosted web build: no secrets, just the flag.
+!.env.selfhost
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Android (Capacitor)
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/captures/
+android/app/release/
+*.keystore
+*.jks
+android/keystore.properties
+
+# Firebase client config — regenerate locally per e2e/README.md and the
+# push-notification setup notes rather than committing; contains
+# per-project identifiers that don't belong pinned into source control.
+android/app/google-services.json
+
+# Claude Code agent worktrees — scratch checkouts (each with its own
+# nested .git), never project source.
+.claude/worktrees/
+
+# Appium/WebdriverIO run logs
+e2e/logs/
+
+# Never commit data: database backups, exports, or a server's data folder.
+# (db/migrations holds the schema only — no rows.)
+*.dump
+*.dump.partial
+*.sql.gz
+ktl-export*.json
+/data/
+selfhost/data/
+secrets.env
+
+# Personal editor and assistant tooling — not part of the project.
+.claude/
+.agents/
+.mcp.json
+skills-lock.json

@@ -1,0 +1,4 @@
+#!/command/with-contenv bash
+set -euo pipefail
+. /etc/ktl/env.sh
+exec s6-setuidgid nobody /usr/local/bin/postgrest

@@ -1,0 +1,6 @@
+#!/command/with-contenv bash
+# Roles, the sign-in service's own tables, KTL's schema (migrations), and
+# the self-hosting extras. Every step is safe to re-run on each boot.
+set -euo pipefail
+. /etc/ktl/env.sh
+exec s6-setuidgid postgres node /app/gateway/setup.mjs

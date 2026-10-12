@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KTL privacy policy</title>
+<style>
+  :root { --bg: #fbf6ee; --surface: #fffdf8; --fg: #201914; --fg-2: #4c4037; --muted: #7a6d63; --border: #ded2c3; --accent: #9b5b32; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1b1511; --surface: #241c17; --fg: #f3ebe1; --fg-2: #d6c9ba; --muted: #a8998b; --border: #3d322a; --accent: #d9955f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 Inter, system-ui, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1, h2 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.02em; line-height: 1.2; }
+  h1 { font-size: 34px; margin: 0 0 4px; }
+  h2 { font-size: 21px; margin: 32px 0 8px; }
+  p, li { color: var(--fg-2); }
+  .meta { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 0; font-size: 15px; }
+  th, td { text-align: left; vertical-align: top; padding: 10px 8px; border-top: 1px solid var(--border); }
+  th { color: var(--fg); font-weight: 600; }
+  a { color: var(--accent); }
+  .table-wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>KTL privacy policy</h1>
+  <p class="meta">Effective 25 September 2026</p>
+
+  <p>KTL splits shared household bills between the people you live with, and separately helps you plan your own money. This policy explains what KTL stores, who can see it, and how to have it deleted. KTL has no ads, no analytics or tracking tools, and never sells your data.</p>
+
+  <p>KTL is self-hosted: your household’s data lives on a KTL server run by you or someone you trust (“the server operator”), not by the people who make KTL. The server operator is responsible for that server and is who to contact about your data.</p>
+
+  <h2>What KTL stores</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th>What</th><th>Why</th><th>Who can see it</th></tr>
+    <tr><td>Your name and email address</td><td>To sign you in (with a password, stored only as a secure hash) and to show your household who you are.</td><td>You, and the people in your household (your name only).</td></tr>
+    <tr><td>Household bills, amounts, splits, money lent, payment status, the household name, and an activity log</td><td>The core of the app: working out who owes what and reminding people.</td><td>Everyone in that household.</td></tr>
+    <tr><td>Your “Yours” figures: take-home pay, payday, personal bills, debts (balances, rates, minimum payments), savings and emergency fund</td><td>To show what’s left after bills and plan paying debt down.</td><td>Only you. It is stored separately from the household and is never shown to anyone else, including whether you use it.</td></tr>
+    <tr><td>A push notification token for your device</td><td>So you can be told when someone in your household does something.</td><td>No one — it’s only used to deliver notifications.</td></tr>
+  </table>
+  </div>
+  <p>Bill reminders are scheduled on your own device. KTL never connects to your bank, never moves money, and never asks for card or account numbers.</p>
+
+  <h2>Services that process it</h2>
+  <ul>
+    <li><strong>Your KTL server</strong> stores all of the data above and handles sign-in. It runs wherever the server operator runs it.</li>
+    <li><strong>Google Firebase Cloud Messaging</strong>, only if the server operator has turned on push notifications, delivers them using your device’s push token.</li>
+    <li>An email delivery service, only if the server operator has set one up, sends password-reset emails.</li>
+  </ul>
+  <p>They process data only to provide those services. Use HTTPS to reach your server so data is encrypted in transit.</p>
+
+  <h2>How long it’s kept</h2>
+  <p>For as long as you have an account. If you leave a household, what you owed or were owed there is closed and written off, and your settled history stays with the people still in it until you delete your account.</p>
+
+  <h2>Deleting your account</h2>
+  <p>In the app, go to <strong>House → Delete your account</strong>. This permanently deletes your account, everything in “Yours”, and your device’s push token straight away. In a household you share, you leave it first; bills and loans you paid for are removed from its history, and the rest stays with the people still in it. You can also <a href="delete-account.html">ask for deletion without the app</a>.</p>
+
+  <h2>Your rights</h2>
+  <p>You can ask for a copy of your data, ask for it to be corrected, or ask for it to be deleted, by emailing <a href="mailto:CONTACT_EMAIL">CONTACT_EMAIL</a>. If you’re in the UK or EU you can also complain to your data protection authority (in the UK, the ICO).</p>
+
+  <h2>Children</h2>
+  <p>KTL is not intended for anyone under 13.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the new version will be posted here with a new effective date.</p>
+
+  <h2>Contact</h2>
+  <p><a href="mailto:CONTACT_EMAIL">CONTACT_EMAIL</a></p>
+</main>
+</body>
+</html>

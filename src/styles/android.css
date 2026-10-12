@@ -1,0 +1,160 @@
+/* KTL — Android platform chrome. Pixel logical size: 412 × 900.
+   Material 3 patterns: top app bar, navigation bar with pill indicator,
+   FAB, bottom sheets, snackbar. Colours come only from styles/tokens.css. */
+
+.phone-ui.android { max-width: 412px; }
+
+/* ── top app bar ───────────────────────────────────────────────────── */
+.md-appbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 60px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+}
+.md-appbar .appbar-title { flex: 1; font-family: var(--font-body); font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.01em; min-width: 0; }
+.md-iconbtn {
+  position: relative;
+  width: 48px; height: 48px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-2);
+  transition: background var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
+}
+.md-iconbtn:hover { background: var(--fg-soft); color: var(--fg); }
+.md-iconbtn:active { background: color-mix(in oklab, var(--fg) 12%, transparent); }
+.md-iconbtn svg { width: 22px; height: 22px; }
+.md-headline {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-4) var(--space-4);
+}
+.md-headline h1 { font-size: var(--text-xl); line-height: 1.12; }
+.md-headline p { margin-top: 4px; }
+
+/* Material shapes are rounder than the iOS defaults. */
+.android .card { border-radius: var(--radius-lg); }
+.android .list { border-radius: var(--radius-lg); }
+.android .btn { border-radius: var(--radius-pill); min-height: 48px; }
+.android .btn-sm { min-height: 40px; }
+.android .input { border-radius: var(--radius-sm) var(--radius-sm) 0 0; border-width: 0 0 1.5px; background: var(--surface-warm); }
+.android .input:focus { border-bottom-color: var(--accent); box-shadow: none; outline: 2px solid var(--accent-soft); outline-offset: -2px; }
+.android .item { min-height: 72px; }
+.android .glyph { width: 44px; height: 44px; border-radius: 50%; }
+.android .sheet { border-radius: 28px 28px 0 0; }
+
+/* leave room for the floating action button */
+.android .scroll.has-fab { padding-bottom: 92px; }
+
+/* ── extended FAB ──────────────────────────────────────────────────── */
+.md-fab {
+  position: absolute;
+  right: var(--space-4);
+  bottom: 108px;
+  z-index: 25;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 56px;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  box-shadow: 0 6px 18px color-mix(in oklab, var(--fg) 26%, transparent);
+  transition: background var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
+}
+.md-fab:hover { background: var(--accent-hover); color: var(--accent-on); box-shadow: 0 10px 24px color-mix(in oklab, var(--fg) 32%, transparent); }
+.md-fab:active { background: var(--accent-active); }
+.md-fab svg { width: 22px; height: 22px; }
+
+/* ── navigation bar ────────────────────────────────────────────────── */
+.md-navbar {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding: var(--space-3) var(--space-2) var(--space-2);
+  background: color-mix(in oklab, var(--surface-warm) 42%, var(--bg));
+  border-top: 1px solid var(--border-soft);
+  z-index: 20;
+}
+.md-dest {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 52px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg-2);
+  font-size: 11px;
+  font-weight: 600;
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+.md-dest .dest-icon {
+  position: relative;
+  width: 60px; height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+.md-dest svg { width: 22px; height: 22px; }
+.md-dest:hover .dest-icon { background: var(--fg-soft); }
+.md-dest:hover { color: var(--fg); }
+.md-dest[aria-current="page"] { color: var(--fg); }
+.md-dest[aria-current="page"] .dest-icon { background: var(--surface-warm); }
+.md-dest .dest-badge {
+  position: absolute;
+  top: 1px; right: 12px;
+  min-width: 16px; height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--danger);
+  color: var(--accent-on);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 16px;
+  text-align: center;
+}
+/* On a real device the system draws its own gesture handle, so this just
+   reserves the room it needs — matching the bar's colour so the tabs sit
+   on a continuous surface rather than against a seam. */
+.md-gesture-safe {
+  flex-shrink: 0;
+  height: env(safe-area-inset-bottom);
+  background: color-mix(in oklab, var(--surface-warm) 42%, var(--bg));
+}
+
+/* ── Material dialog ───────────────────────────────────────────────── */
+.md-dialog {
+  position: absolute;
+  left: var(--space-6); right: var(--space-6);
+  top: 50%;
+  transform: translateY(-46%) scale(0.96);
+  z-index: 50;
+  background: var(--surface);
+  border-radius: 28px;
+  padding: var(--space-6);
+  box-shadow: var(--elev-raised);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard);
+}
+.md-dialog.open { opacity: 1; transform: translateY(-50%) scale(1); pointer-events: auto; }
+.md-dialog h2 { font-size: var(--text-lg); line-height: 1.2; margin-bottom: var(--space-3); }
+.md-dialog .dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-5); }
+
+/* ── snackbar (Android replacement for the iOS toast) ──────────────── */
+.android .toast {
+  bottom: 128px;
+  border-radius: var(--radius-sm);
+  background: var(--fg-2);
+}

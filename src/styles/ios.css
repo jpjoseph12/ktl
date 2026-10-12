@@ -1,0 +1,155 @@
+/* KTL — iOS platform chrome. iPhone 15 Pro logical size: 390 × 844.
+   Colours come only from styles/tokens.css. */
+
+.phone-ui.ios { max-width: 390px; }
+
+/* ── status bar + Dynamic Island ───────────────────────────────────── */
+.ios-status {
+  position: relative;
+  height: 54px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  padding-top: 8px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg);
+  z-index: 30;
+}
+.ios-status .status-time { letter-spacing: -0.01em; min-width: 54px; }
+.ios-status .status-icons { display: flex; align-items: center; gap: 6px; color: var(--fg); }
+.ios-status .status-icons svg { height: 12px; width: auto; }
+.ios-island {
+  position: absolute;
+  top: 11px; left: 50%;
+  transform: translateX(-50%);
+  width: 124px; height: 35px;
+  border-radius: var(--radius-pill);
+  background: var(--fg);
+}
+
+/* ── navigation bar ────────────────────────────────────────────────── */
+.ios-nav {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+}
+.ios-nav .nav-title { font-family: var(--font-body); font-size: var(--text-base); font-weight: 600; letter-spacing: -0.01em; }
+.ios-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+  padding: 0 var(--space-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: background var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
+}
+.ios-nav-btn:hover { background: var(--accent-soft); color: var(--accent-active); }
+.ios-nav-btn:active { background: color-mix(in oklab, var(--accent) 20%, transparent); }
+.ios-nav-btn svg { width: 20px; height: 20px; }
+.ios-nav-btn.plain { color: var(--fg-2); }
+.ios-nav-btn.plain:hover { background: var(--fg-soft); color: var(--fg); }
+
+.ios-largetitle {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-4) var(--space-3);
+}
+.ios-largetitle h1 { font-size: var(--text-xl); line-height: 1.12; }
+.ios-largetitle p { margin-top: 3px; }
+
+/* ── grouped list, iOS style ───────────────────────────────────────── */
+.ios-group-label {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  padding: 0 var(--space-1) var(--space-2);
+}
+.ios-chevron { color: var(--muted); flex-shrink: 0; }
+.ios-chevron svg { width: 15px; height: 15px; }
+
+/* ── tab bar ───────────────────────────────────────────────────────── */
+.ios-tabbar {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-top: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg) 88%, var(--surface));
+  backdrop-filter: blur(14px);
+  padding-top: 6px;
+  z-index: 20;
+}
+.ios-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: 46px;
+  padding: 2px 2px 4px;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+.ios-tab svg { width: 23px; height: 23px; }
+.ios-tab:hover { color: var(--fg-2); }
+.ios-tab[aria-current="page"] { color: var(--accent); }
+.ios-tab .tab-badge {
+  position: absolute;
+  transform: translate(12px, -4px);
+  min-width: 16px; height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--danger);
+  color: var(--accent-on);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 16px;
+  text-align: center;
+}
+.ios-tab-wrap { position: relative; display: flex; }
+.ios-home-indicator {
+  flex-shrink: 0;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--bg) 88%, var(--surface));
+}
+.ios-home-indicator::after {
+  content: "";
+  width: 134px; height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--fg);
+  opacity: 0.85;
+}
+
+/* ── iOS action sheet buttons ──────────────────────────────────────── */
+.ios-sheet-action {
+  width: 100%;
+  min-height: 50px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+.ios-sheet-action:hover { background: var(--surface-warm); }

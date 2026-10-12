@@ -1,0 +1,28 @@
+#!/command/with-contenv bash
+# The admin page saves settings to /data/config/settings.env. The gateway
+# reads them as it goes; the sign-in service and the tunnel only read them
+# when they start, so restart those two whenever the file changes. Once
+# sign-in is answering again, record which version of the file is live in
+# /run/ktl/settings.applied — the gateway waits for that before telling the
+# admin page a change has taken effect.
+mkdir -p /run/ktl
+chmod 755 /run/ktl
+file=/data/config/settings.env
+hash() { md5sum "$file" 2>/dev/null | cut -d' ' -f1; }
+
+last="$(hash)"
+echo "$last" > /run/ktl/settings.applied
+while :; do
+  sleep 1
+  now="$(hash)"
+  [ "$now" = "$last" ] && continue
+  echo "ktl: settings changed, restarting sign-in and tunnel"
+  s6-svc -r /run/service/gotrue
+  s6-svc -r /run/service/cloudflared
+  for _ in $(seq 1 30); do
+    curl -fsS -o /dev/null http://127.0.0.1:9999/health && break
+    sleep 0.5
+  done
+  last="$now"
+  echo "$now" > /run/ktl/settings.applied
+done

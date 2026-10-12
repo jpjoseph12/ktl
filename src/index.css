@@ -1,0 +1,8 @@
+@import "./styles/tokens.css";
+@import "./styles/ios.css";
+@import "./styles/android.css";
+@import "./styles/tablet.css";
+
+#root {
+  min-height: 100dvh;
+}

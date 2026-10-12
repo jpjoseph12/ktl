@@ -1,0 +1,5 @@
+#!/command/with-contenv bash
+set -euo pipefail
+. /etc/ktl/env.sh
+cd /app/gateway
+exec s6-setuidgid postgres node server.mjs

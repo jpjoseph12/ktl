@@ -1,0 +1,9 @@
+#!/command/with-contenv bash
+# Optional: with a tunnel token (container variable or the admin page), the
+# container reaches Cloudflare itself and needs no open ports. Point the
+# tunnel's public hostname at http://localhost:3000 in Cloudflare.
+. /etc/ktl/env.sh
+if [ -z "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
+  exec sleep infinity
+fi
+exec s6-setuidgid nobody cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run --token "$CLOUDFLARE_TUNNEL_TOKEN"

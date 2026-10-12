@@ -1,0 +1,6 @@
+#!/bin/bash
+# Server-side admin for KTL: `docker exec -it ktl ktl-admin help`
+set -euo pipefail
+. /etc/ktl/env.sh
+cd /app/gateway
+exec /command/s6-setuidgid postgres node admin.mjs "$@"

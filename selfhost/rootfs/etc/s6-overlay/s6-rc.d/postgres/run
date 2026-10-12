@@ -1,0 +1,20 @@
+#!/command/with-contenv bash
+set -euo pipefail
+export PGDATA=/data/postgres
+
+if [ ! -s "$PGDATA/PG_VERSION" ]; then
+  echo "ktl: creating the database"
+  s6-setuidgid postgres initdb -D "$PGDATA" -U postgres \
+    --auth-local=peer --auth-host=scram-sha-256 --encoding=UTF8 --locale=C.UTF-8 >/dev/null
+fi
+
+# Only ever reachable from inside the container.
+exec s6-notifyoncheck -d -w 500 -n 600 \
+  -c "s6-setuidgid postgres /usr/lib/postgresql/${PG_MAJOR}/bin/pg_isready -q -h /var/run/postgresql" \
+  s6-setuidgid postgres postgres -D "$PGDATA" \
+    -c listen_addresses=127.0.0.1 \
+    -c unix_socket_directories=/var/run/postgresql \
+    -c max_connections=60 \
+    -c shared_buffers=128MB \
+    -c log_min_messages=warning \
+    -c log_line_prefix='postgres: '
