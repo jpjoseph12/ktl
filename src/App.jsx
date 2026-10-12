@@ -115,6 +115,7 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/android/onboarding" replace />} />
         <Route path="/setup" element={<Setup />} />
         <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
+        <Route path="/admin/:section" element={<RequireAuth><Admin /></RequireAuth>} />
         <Route path="/android/onboarding" element={<RedirectIfSignedIn><AndroidOnboarding /></RedirectIfSignedIn>} />
         <Route path="/android/home" element={protectedRoute(<AndroidHome />)} />
         <Route path="/android/bills" element={protectedRoute(<AndroidBills />)} />
