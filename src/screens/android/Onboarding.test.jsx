@@ -4,9 +4,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AndroidOnboarding, { SetPasswordScreen } from './Onboarding';
 import { useAuth } from '../../context/AuthContext';
+import { accountNeedsPassword } from '../../lib/api';
 
 vi.mock('../../context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('../../context/KettleContext', () => ({ useKettle: vi.fn() }));
+vi.mock('../../lib/api', async (importOriginal) => ({ ...(await importOriginal()), accountNeedsPassword: vi.fn() }));
 
 function auth(overrides = {}) {
   return {
@@ -33,7 +35,19 @@ async function fillSignup(user, password) {
 }
 
 describe('Onboarding — email and password', () => {
-  beforeEach(() => { useAuth.mockReset(); });
+  beforeEach(() => {
+    useAuth.mockReset();
+    accountNeedsPassword.mockReset();
+    accountNeedsPassword.mockResolvedValue(false);
+  });
+
+  const wrongPassword = () => Object.assign(new Error('Invalid login credentials'), { code: 'invalid_credentials' });
+  async function logIn(user) {
+    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    await user.type(screen.getByLabelText('Email'), 'alex@example.com');
+    await user.type(screen.getByLabelText('Password'), 'not-it-at-all');
+    await user.click(screen.getByRole('button', { name: 'Log in' }));
+  }
 
   it('creates an account with a name, email and password', async () => {
     const user = userEvent.setup();
@@ -68,19 +82,44 @@ describe('Onboarding — email and password', () => {
     expect(await screen.findByText('Check your email')).toBeInTheDocument();
   });
 
-  it('explains a wrong password, and offers a way in to people who only ever had email links', async () => {
+  it('explains a wrong password', async () => {
     const user = userEvent.setup();
-    const err = Object.assign(new Error('Invalid login credentials'), { code: 'invalid_credentials' });
-    useAuth.mockReturnValue(auth({ signIn: vi.fn().mockRejectedValue(err) }));
+    useAuth.mockReturnValue(auth({ signIn: vi.fn().mockRejectedValue(wrongPassword()) }));
     renderOnboarding();
 
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
-    await user.type(screen.getByLabelText('Email'), 'alex@example.com');
-    await user.type(screen.getByLabelText('Password'), 'not-it-at-all');
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    await logIn(user);
 
     expect(await screen.findByText(/that email and password don’t match/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Set a password' })).toBeInTheDocument();
+    expect(accountNeedsPassword).toHaveBeenCalledWith('alex@example.com');
+  });
+
+  it('says when the account has no password yet, and emails a link to set one', async () => {
+    const user = userEvent.setup();
+    accountNeedsPassword.mockResolvedValue(true);
+    const A = auth({ signIn: vi.fn().mockRejectedValue(wrongPassword()) });
+    useAuth.mockReturnValue(A);
+    renderOnboarding();
+
+    await logIn(user);
+
+    expect(await screen.findByText(/there isn’t a password set for/i)).toBeInTheDocument();
+    expect(screen.queryByText(/don’t match/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Email me a link to set it' }));
+    expect(A.requestPasswordReset).toHaveBeenCalledWith('alex@example.com');
+    expect(await screen.findByText(/Open it to choose your password/)).toBeInTheDocument();
+  });
+
+  it('sends people with no password to whoever runs the server when it can’t email', async () => {
+    const user = userEvent.setup();
+    accountNeedsPassword.mockResolvedValue(true);
+    useAuth.mockReturnValue(auth({ signIn: vi.fn().mockRejectedValue(wrongPassword()), serverSendsEmail: vi.fn().mockResolvedValue(false) }));
+    renderOnboarding();
+
+    await logIn(user);
+
+    expect(await screen.findByText(/there isn’t a password set for/i)).toBeInTheDocument();
+    expect(screen.getByText(/ask whoever runs it for a set-password link/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Email me a link to set it' })).not.toBeInTheDocument();
   });
 
   it('emails a reset link when the server can send email', async () => {

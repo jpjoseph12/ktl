@@ -7,7 +7,7 @@ import { MIN_PASSWORD_LENGTH, validEmail, validName, validPassword } from '../..
 import { TabletCenteredShell } from '../../components/tablet/TabletShell';
 import useIsTablet, { CENTERED_QUERY } from '../../lib/useIsTablet';
 import useServerInfo from '../../lib/useServerInfo';
-import { clearServer, IS_NATIVE, SERVER_URL } from '../../lib/api';
+import { accountNeedsPassword, clearServer, IS_NATIVE, SERVER_URL } from '../../lib/api';
 
 
 function OnboardingFrame({ children }) {
@@ -24,7 +24,7 @@ export default function AndroidOnboarding() {
   );
 }
 
-/* welcome / signin / forgot / sent are the chrome-less splash screens —
+/* welcome / signin / nopassword / forgot / sent are the chrome-less splash screens —
    no app bar, matching the source design. signup is the multi-field
    "create your account" screen, which keeps its own app bar. */
 const STEP_TITLE = {
@@ -79,7 +79,6 @@ function OnboardingBody() {
   const [sentReason, setSentReason] = useState('reset');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
-  const [noAccountFound, setNoAccountFound] = useState(false);
   const [canEmail, setCanEmail] = useState(true);
 
   const [fullName, setFullName] = useState('');
@@ -91,7 +90,6 @@ function OnboardingBody() {
 
   function go(next) {
     setFormError('');
-    setNoAccountFound(false);
     setPasswordInvalid(false);
     setStep(next);
   }
@@ -102,7 +100,7 @@ function OnboardingBody() {
   }
 
   function back() {
-    go(step === 'forgot' ? 'signin' : 'welcome');
+    go(step === 'forgot' || step === 'nopassword' ? 'signin' : 'welcome');
   }
 
   async function submitSignup() {
@@ -133,12 +131,16 @@ function OnboardingBody() {
   async function submitSignin() {
     if (!validEmail(email) || !password) return;
     setFormError('');
-    setNoAccountFound(false);
     setBusy(true);
     try {
       await signIn(email.trim(), password);
     } catch (err) {
-      setNoAccountFound(err?.code === 'invalid_credentials');
+      // "Wrong password" is misleading for an account that has none yet.
+      if (err?.code === 'invalid_credentials' && await accountNeedsPassword(email.trim())) {
+        setCanEmail(await serverSendsEmail());
+        go('nopassword');
+        return;
+      }
       setFormError(authMessage(err, 'Could not log you in.'));
     } finally {
       setBusy(false);
@@ -150,13 +152,13 @@ function OnboardingBody() {
     setCanEmail(await serverSendsEmail());
   }
 
-  async function submitForgot() {
+  async function submitForgot(reason = 'reset') {
     if (!validEmail(email)) return;
     setFormError('');
     setBusy(true);
     try {
       await requestPasswordReset(email.trim());
-      setSentReason('reset');
+      setSentReason(reason);
       setStep('sent');
     } catch (err) {
       setFormError(authMessage(err, 'Could not send a reset link.'));
@@ -246,10 +248,7 @@ function OnboardingBody() {
               {formError && (
                 <p className="hint">
                   <Icon name="alert" size={16} />
-                  <span>
-                    {formError}
-                    {noAccountFound && <> Used an email link to sign in before? <button type="button" onClick={openForgot}>Set a password</button></>}
-                  </span>
+                  <span>{formError}</span>
                 </p>
               )}
               <button type="submit" className="btn btn-primary btn-block" disabled={!validEmail(email) || !password || busy}>
@@ -259,6 +258,38 @@ function OnboardingBody() {
                 <button type="button" onClick={openForgot}>Forgot your password?</button>
               </p>
             </form>
+          </section>
+        )}
+
+        {step === 'nopassword' && (
+          <section className="splash-panel">
+            <button className="btn btn-ghost" style={{ alignSelf: 'flex-start', paddingInline: 'var(--space-2)' }} onClick={back}>
+              <Icon name="back" size={18} />Back
+            </button>
+
+            <div className="splash-brand" style={{ paddingTop: 'var(--space-4)' }}>
+              <h1 className="splash-wordmark">Set your password</h1>
+              <p className="splash-tagline">
+                It looks like there isn’t a password set for <strong className="num">{email.trim()}</strong> yet. Please set one, then log in with it.
+              </p>
+            </div>
+
+            <div className="splash-form stack">
+              {canEmail ? (
+                <>
+                  {formError && <p className="hint"><Icon name="alert" size={16} /><span>{formError}</span></p>}
+                  <button className="btn btn-primary btn-block" disabled={busy} onClick={() => submitForgot('set')}>
+                    {busy ? 'Sending…' : 'Email me a link to set it'}
+                  </button>
+                </>
+              ) : (
+                <p className="hint">
+                  <Icon name="lock" size={16} />
+                  <span>This server can’t send email, so ask whoever runs it for a set-password link — they can make one under People and server settings. It opens straight to a screen where you choose your password.</span>
+                </p>
+              )}
+              <button className="btn btn-ghost btn-block" onClick={() => go('signin')}>Back to log in</button>
+            </div>
           </section>
         )}
 
@@ -349,7 +380,9 @@ function OnboardingBody() {
               <Icon name="send" size={26} />
               <h1 style={{ marginTop: 'var(--space-3)' }}>Check your email</h1>
               <p className="body-sm" style={{ marginTop: 'var(--space-2)' }}>
-                {sentReason === 'reset'
+                {sentReason === 'set'
+                  ? <>We’ve sent a link to <strong className="num">{email}</strong>. Open it to choose your password, and you’re in.</>
+                  : sentReason === 'reset'
                   ? <>If there’s an account for <strong className="num">{email}</strong>, we’ve sent it a link to set a new password.</>
                   : <>We sent a link to <strong className="num">{email}</strong>. Open it to confirm your address, then log in.</>}
               </p>

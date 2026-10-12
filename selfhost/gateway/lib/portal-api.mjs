@@ -33,6 +33,8 @@ const MAX_BODY = 64 * 1024;
 const ATTEMPTS = new Map(); // ip -> { count, until }
 const LOCK_AFTER = 5;
 const LOCK_MS = 15 * 60 * 1000;
+const CHECKS = new Map(); // ip -> { count, until }, for password-status
+const CHECKS_ALLOWED = 10; // per IP per LOCK_MS
 const MAX_PEOPLE = 6;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -325,6 +327,11 @@ export function createPortalApi({ clientIp, sendJson, onPushChanged = () => {} }
         if (body.smtpSender && !EMAIL.test(String(body.smtpSender).trim())) throw new HttpError(400, 'bad_sender', 'The sender should be an email address.');
         changes.KTL_SMTP_SENDER = body.smtpSender;
       }
+      if ('smtpSenderName' in body) {
+        const name = String(body.smtpSenderName ?? '').replace(/\p{Cc}/gu, '').trim();
+        if (name.length > 60) throw new HttpError(400, 'bad_sender_name', 'Keep the sender name under 60 characters.');
+        changes.KTL_SMTP_SENDER_NAME = name;
+      }
       if ('tunnelToken' in body) changes.CLOUDFLARE_TUNNEL_TOKEN = body.tunnelToken;
       const changed = settings.update(changes);
       if (settings.needsRestart(changed)) await settings.waitUntilApplied();
@@ -370,6 +377,27 @@ export function createPortalApi({ clientIp, sendJson, onPushChanged = () => {} }
       const { hid } = await requireOwner(req);
       await runBackup({ label: 'manual' });
       return overview(hid);
+    },
+
+    /* After a failed log-in, the app asks whether the account simply has
+       no password yet — made from the admin page and its link never used,
+       or from before KTL had passwords — so it can say so instead of
+       "wrong password". It answers true for nothing else, and is rate
+       limited, so it can't be used to list who has an account. */
+    'POST /api/account/password-status': async (req) => {
+      const ip = clientIp(req);
+      const now = Date.now();
+      const seen = CHECKS.get(ip);
+      const entry = seen && seen.until > now ? seen : { count: 0, until: now + LOCK_MS };
+      entry.count += 1;
+      CHECKS.set(ip, entry);
+      if (entry.count > CHECKS_ALLOWED) throw new HttpError(429, 'over_request_rate_limit', 'Too many tries. Wait a few minutes, then try again.');
+      const email = String((await readJson(req)).email || '').trim();
+      if (!EMAIL.test(email)) return { needsPassword: false };
+      const { rows: [u] } = await getPool().query(
+        "select coalesce(encrypted_password, '') = '' as needs from auth.users where lower(email) = lower($1)", [email]
+      );
+      return { needsPassword: Boolean(u?.needs) };
     },
 
     'POST /api/account/delete': async (req) => {

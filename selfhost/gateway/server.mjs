@@ -46,7 +46,7 @@ const MIME = {
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'same-origin',
-  'X-Frame-Options': 'DENY',
+  'X-Frame-Options': 'SAMEORIGIN',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
   'Content-Security-Policy': [
     "default-src 'self'",
@@ -55,7 +55,7 @@ const SECURITY_HEADERS = {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self'",
-    "frame-ancestors 'none'",
+    "frame-ancestors 'self'", // the setup guide shows the app in device frames
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'"

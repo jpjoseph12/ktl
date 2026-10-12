@@ -91,6 +91,12 @@ describe('gateway routing', () => {
     assert.equal(res.headers.get('cache-control'), 'no-cache');
   });
 
+  it('lets only its own pages frame the app (the setup guide’s device previews)', async () => {
+    const res = await fetch(`${base}/android/home`);
+    assert.match(res.headers.get('content-security-policy'), /frame-ancestors 'self'/);
+    assert.equal(res.headers.get('x-frame-options'), 'SAMEORIGIN');
+  });
+
   it('caches hashed assets for good', async () => {
     const res = await fetch(`${base}/assets/index-AbCdEf12.js`);
     assert.equal(res.status, 200);
@@ -150,6 +156,13 @@ describe('settings saved from the admin page', () => {
     settings.update({ KTL_SMTP_PASS: '' });
   });
 
+  it('saves the name emails come from', () => {
+    assert.deepEqual(settings.update({ KTL_SMTP_SENDER_NAME: 'Flat 4 bills' }), ['KTL_SMTP_SENDER_NAME']);
+    assert.deepEqual(settings.describe().smtpSenderName, { value: 'Flat 4 bills', set: true, source: 'settings' });
+    assert.deepEqual(settings.needsRestart(['KTL_SMTP_SENDER_NAME']), true);
+    settings.update({ KTL_SMTP_SENDER_NAME: '' });
+  });
+
   it('keeps sign-ups closed until someone opens them', () => {
     assert.equal(config.allowSignup, false);
     settings.update({ KTL_ALLOW_SIGNUP: 'true' });
@@ -206,5 +219,15 @@ describe('setup and admin', () => {
     const statuses = [];
     for (let i = 0; i < 6; i++) statuses.push((await post()).status);
     assert.deepEqual(statuses, [403, 403, 403, 403, 403, 429]);
+  });
+
+  it('only says an account has no password yet, and stops answering after ten asks', async () => {
+    const ask = (email) => fetch(`${base}/api/account/password-status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+    const first = await ask('not-an-email');
+    assert.equal(first.status, 200);
+    assert.deepEqual(await first.json(), { needsPassword: false });
+    const statuses = [];
+    for (let i = 0; i < 10; i++) statuses.push((await ask('not-an-email')).status);
+    assert.deepEqual(statuses, [200, 200, 200, 200, 200, 200, 200, 200, 200, 429]);
   });
 });

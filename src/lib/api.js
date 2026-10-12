@@ -118,3 +118,14 @@ export async function apiFetch(path, { method = 'GET', body, headers = {} } = {}
   }
   return json;
 }
+
+/* After a failed log-in: is this an account that just has no password
+   yet? Only ever true for such an account; any failure counts as no. */
+export async function accountNeedsPassword(email) {
+  try {
+    const r = await apiFetch('/api/account/password-status', { method: 'POST', body: { email } });
+    return r?.needsPassword === true;
+  } catch {
+    return false;
+  }
+}

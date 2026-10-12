@@ -21,6 +21,7 @@ export const KEYS = {
   smtpUser: 'KTL_SMTP_USER',
   smtpPass: 'KTL_SMTP_PASS',
   smtpSender: 'KTL_SMTP_SENDER',
+  smtpSenderName: 'KTL_SMTP_SENDER_NAME',
   tunnelToken: 'CLOUDFLARE_TUNNEL_TOKEN'
 };
 const SECRET = new Set(['KTL_SMTP_PASS', 'CLOUDFLARE_TUNNEL_TOKEN']);
@@ -98,7 +99,7 @@ export function update(changes) {
 }
 
 /* Keys the sign-in service or the tunnel only read when they start. */
-const NEEDS_RESTART = new Set(['KTL_SITE_URL', 'KTL_SMTP_HOST', 'KTL_SMTP_PORT', 'KTL_SMTP_USER', 'KTL_SMTP_PASS', 'KTL_SMTP_SENDER', 'CLOUDFLARE_TUNNEL_TOKEN']);
+const NEEDS_RESTART = new Set(['KTL_SITE_URL', 'KTL_SMTP_HOST', 'KTL_SMTP_PORT', 'KTL_SMTP_USER', 'KTL_SMTP_PASS', 'KTL_SMTP_SENDER', 'KTL_SMTP_SENDER_NAME', 'CLOUDFLARE_TUNNEL_TOKEN']);
 export const APPLIED_FILE = process.env.KTL_SETTINGS_APPLIED || '/run/ktl/settings.applied';
 
 export function needsRestart(changedKeys) {

@@ -186,7 +186,7 @@ it as "set by the container".
 |---|---|
 | `KTL_SITE_URL` | The address people open, e.g. `https://ktl.example.com`. |
 | `KTL_ALLOW_SIGNUP` | `true` to let anyone who reaches the server create an account. |
-| `KTL_SMTP_HOST`, `_PORT`, `_USER`, `_PASS`, `_SENDER` | Email, for password resets. |
+| `KTL_SMTP_HOST`, `_PORT`, `_USER`, `_PASS`, `_SENDER`, `_SENDER_NAME` | Email, for password resets. |
 | `CLOUDFLARE_TUNNEL_TOKEN` | Runs a Cloudflare Tunnel inside the container. |
 | `KTL_FCM_SERVICE_ACCOUNT` | A Firebase service-account key (JSON), for push. |
 | `KTL_TRUST_PROXY` | `true` behind a reverse proxy on another machine. |

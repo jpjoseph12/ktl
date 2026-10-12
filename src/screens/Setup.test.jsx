@@ -94,3 +94,52 @@ describe('Setup — first run in the browser', () => {
     expect(screen.getByRole('link', { name: 'Log in to KTL' })).toHaveAttribute('href', '/android/onboarding');
   });
 });
+
+describe('Setup — on a computer, the full guide', () => {
+  beforeEach(() => {
+    apiFetch.mockReset();
+    apiFetch.mockResolvedValue(OVERVIEW);
+    signIn.mockClear();
+    vi.stubGlobal('matchMedia', (query) => ({ matches: true, media: query, addEventListener() {}, removeEventListener() {} }));
+    vi.stubGlobal('scrollTo', () => {});
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('shows the guide with the real setup form in step 3, then carries on as a column', async () => {
+    const user = userEvent.setup();
+    const fetchMock = server();
+    renderSetup();
+    expect(await screen.findByRole('heading', { name: 'Run KTL on your own server.' })).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 3 · at /setup')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Setup code'), 'ABCD-EF23');
+    await user.type(screen.getByLabelText('Household name'), 'Flat 4');
+    await user.type(screen.getByLabelText('Your name'), 'Alex Rivera');
+    await user.type(screen.getByLabelText('Your email'), 'alex@example.com');
+    await user.type(screen.getByLabelText('Password'), 'a-good-password');
+    await user.click(screen.getByRole('button', { name: 'Set up the server' }));
+
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/api/setup/claim'))).toBe(true);
+    expect(await screen.findByText('Who you share with')).toBeInTheDocument();
+  });
+
+  it('runs the real app in all three device frames, on the screen you pick', async () => {
+    const user = userEvent.setup();
+    server();
+    renderSetup();
+    await screen.findByRole('heading', { name: 'Run KTL on your own server.' });
+    const frames = () => ['KTL on an Android phone', 'KTL on an Android tablet', 'KTL in a desktop browser'].map((t) => screen.getByTitle(t));
+    frames().forEach((f) => expect(f).toHaveAttribute('src', '/android/home'));
+
+    await user.click(screen.getByRole('tab', { name: 'Balance' }));
+    frames().forEach((f) => expect(f).toHaveAttribute('src', '/android/settle'));
+  });
+
+  it('points to logging in and the admin page once the server is set up', async () => {
+    server({ ready: true });
+    renderSetup();
+    expect(await screen.findByText('This server is set up')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Setup code')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Log in to KTL' })[0]).toHaveAttribute('href', '/android/onboarding');
+  });
+});

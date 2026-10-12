@@ -103,7 +103,8 @@ export function EmailCard({ admin }) {
   const st = data?.settings;
   const [form, setForm] = useState(() => ({
     smtpHost: st?.smtpHost.value || '', smtpPort: st?.smtpPort.value || '587',
-    smtpUser: st?.smtpUser.value || '', smtpPass: '', smtpSender: st?.smtpSender.value || ''
+    smtpUser: st?.smtpUser.value || '', smtpPass: '', smtpSender: st?.smtpSender.value || '',
+    smtpSenderName: st?.smtpSenderName?.value || ''
   }));
   const { busy, run, feedback } = useSaver();
   if (!data) return null;
@@ -111,7 +112,7 @@ export function EmailCard({ admin }) {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   function saveEmail() {
-    const changes = { smtpHost: form.smtpHost, smtpPort: form.smtpPort, smtpUser: form.smtpUser, smtpSender: form.smtpSender };
+    const changes = { smtpHost: form.smtpHost, smtpPort: form.smtpPort, smtpUser: form.smtpUser, smtpSender: form.smtpSender, smtpSenderName: form.smtpSenderName };
     if (form.smtpPass) changes.smtpPass = form.smtpPass;
     return run(async () => { await save(changes); setForm((f) => ({ ...f, smtpPass: '' })); }, 'Saved. Give it a few seconds, then send a test.');
   }
@@ -134,6 +135,11 @@ export function EmailCard({ admin }) {
               <input className="input" id="smtp-pass" type="password" value={form.smtpPass} onChange={set('smtpPass')} autoComplete="new-password" placeholder={st.smtpPass.set ? 'Saved — type to replace' : ''} />
             </div>
             <div className="field"><label htmlFor="smtp-sender">Send from</label><input className="input" id="smtp-sender" type="email" value={form.smtpSender} onChange={set('smtpSender')} placeholder="ktl@example.com" autoCapitalize="off" /></div>
+            <div className="field">
+              <label htmlFor="smtp-sender-name">Sender name</label>
+              <input className="input" id="smtp-sender-name" value={form.smtpSenderName} onChange={set('smtpSenderName')} placeholder="KTL" maxLength={60} />
+              <span className="field-help">What people see the email as coming from.</span>
+            </div>
             <div className="row" style={{ gap: 'var(--space-2)' }}>
               <button type="submit" className="btn btn-secondary btn-sm" disabled={busy}>Save email</button>
               {st.smtpHost.set && (

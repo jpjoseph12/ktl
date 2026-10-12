@@ -1,0 +1,122 @@
+/* Setup guide (/setup on a computer) — layout only. Every value comes from
+   tokens.css. Ported from the design's setup.html; every rule is scoped
+   to .setup-guide so its page-level class names stay out of the app. */
+.setup-guide { display: block; min-height: 100vh; background: var(--bg); }
+.setup-guide .container { max-width: var(--container-max); margin-inline: auto; padding-inline: var(--container-gutter-desktop); }
+.setup-guide .section { padding-block: clamp(48px, 7vw, var(--section-y-desktop)); }
+.setup-guide .section + .section { border-top: 1px solid var(--border-soft); }
+.setup-guide .head-lg { max-width: 64ch; margin-bottom: var(--space-8); }
+.setup-guide .head-lg h2 { font-size: var(--text-xl); line-height: 1.12; margin-bottom: var(--space-3); }
+.setup-guide .head-lg p { color: var(--fg-2); font-size: var(--text-base); line-height: 1.6; }
+
+/* ── top nav ─────────────────────────────────────────────────────── */
+.setup-guide .topnav { position: sticky; top: 0; z-index: 20; background: color-mix(in oklab, var(--bg) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-soft); }
+.setup-guide .topnav-inner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-6); padding-block: var(--space-3); }
+.setup-guide .logo { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.02em; }
+.setup-guide .logo svg { width: 20px; height: 20px; color: var(--fg-2); }
+.setup-guide .topnav nav { display: flex; gap: var(--space-6); }
+.setup-guide .topnav nav a { font-size: var(--text-sm); color: var(--muted); padding: var(--space-2) 0; }
+.setup-guide .topnav nav a:hover { color: var(--fg); }
+.setup-guide .topnav .open-link { font-size: var(--text-xs); font-family: var(--font-mono); color: var(--fg-2); border-bottom: 1px solid var(--border); padding-bottom: 1px; }
+.setup-guide .topnav .open-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── hero ────────────────────────────────────────────────────────── */
+.setup-guide .hero { max-width: 62ch; }
+.setup-guide .hero h1 { font-size: clamp(34px, 4.4vw, 56px); line-height: 1.05; margin: var(--space-4) 0 var(--space-5); }
+.setup-guide .hero .lead { font-size: var(--text-lg); color: var(--fg-2); line-height: 1.55; }
+.setup-guide .hero-cta { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-8); }
+.setup-guide .facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-6); margin: var(--space-12) 0 0; }
+.setup-guide .fact { border-top: 1px solid var(--border); padding-top: var(--space-4); text-align: left; }
+.setup-guide .fact dt { font-size: var(--text-xs); color: var(--muted); font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.setup-guide .fact dd { margin: var(--space-2) 0 0; font-family: var(--font-display); font-size: var(--text-lg); letter-spacing: -0.02em; }
+
+/* ── cards ───────────────────────────────────────────────────────── */
+.setup-guide .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.setup-guide .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-8); align-items: start; }
+.setup-guide .need { display: grid; grid-template-columns: 42px 1fr; gap: var(--space-4); align-items: start; }
+.setup-guide .need .glyph { margin-top: 2px; }
+.setup-guide .card h3 { font-size: var(--text-lg); }
+.setup-guide code { font-family: var(--font-mono); font-size: 0.92em; color: var(--fg); background: var(--surface-warm); padding: 1px 5px; border-radius: 5px; }
+
+/* ── steps ───────────────────────────────────────────────────────── */
+.setup-guide .steps { display: flex; flex-direction: column; gap: var(--space-5); }
+.setup-guide .step { display: grid; grid-template-columns: 40px 1fr; gap: var(--space-4); }
+.setup-guide .step-num { width: 34px; height: 34px; border-radius: var(--radius-pill); background: var(--fg); color: var(--bg); display: grid; place-items: center; font-family: var(--font-mono); font-size: var(--text-sm); }
+.setup-guide .step-body { padding-bottom: var(--space-5); border-bottom: 1px solid var(--border-soft); }
+.setup-guide .step:last-child .step-body { border-bottom: 0; padding-bottom: 0; }
+.setup-guide .step h3 { font-family: var(--font-body); font-size: var(--text-base); font-weight: 600; letter-spacing: 0; margin-bottom: var(--space-2); }
+.setup-guide .step p { color: var(--fg-2); font-size: var(--text-sm); line-height: 1.6; }
+.setup-guide .step p + p, .setup-guide .step .code-wrap + p { margin-top: var(--space-3); }
+
+/* ── code blocks ─────────────────────────────────────────────────── */
+.setup-guide .code-wrap { position: relative; margin-top: var(--space-3); }
+.setup-guide .code { display: block; margin: 0; background: var(--fg); color: color-mix(in oklab, var(--bg) 90%, transparent); border-radius: var(--radius-md); padding: var(--space-4) var(--space-5); font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.75; overflow-x: auto; white-space: pre; }
+.setup-guide .code-copy { position: absolute; top: 10px; right: 10px; min-height: 30px; padding: 0 11px; border-radius: var(--radius-pill); border: 1px solid color-mix(in oklab, var(--bg) 26%, transparent); background: color-mix(in oklab, var(--bg) 12%, transparent); color: var(--bg); font-size: var(--text-xs); }
+.setup-guide .code-copy:hover { background: color-mix(in oklab, var(--bg) 20%, transparent); }
+
+/* ── the setup form, live in step 3 ──────────────────────────────── */
+.setup-guide .portal { max-width: 460px; margin-top: var(--space-5); }
+.setup-guide .portal .card-lg { box-shadow: var(--elev-raised); }
+.setup-guide .portal-title { font-size: var(--text-lg); line-height: 1.2; }
+.setup-guide .step .portal p { color: inherit; font-size: inherit; }
+.setup-guide .step .portal p.meta { color: var(--muted); font-size: var(--text-xs); }
+
+/* ── the two-step cycle ──────────────────────────────────────────── */
+.setup-guide .cycle-note { max-width: 46ch; }
+
+/* ── device gallery ──────────────────────────────────────────────── */
+.setup-guide .gallery-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-6); flex-wrap: wrap; margin-bottom: var(--space-8); }
+.setup-guide .gallery-controls { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.setup-guide .gallery-controls .seg { width: 340px; max-width: 100%; }
+.setup-guide .gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-6); align-items: start; justify-items: center; }
+.setup-guide .frame { display: flex; flex-direction: column; gap: var(--space-3); width: 100%; align-items: center; margin: 0; }
+.setup-guide .frame-viewport { position: relative; width: 100%; overflow: visible; }
+.setup-guide .frame-inner { position: absolute; top: 0; left: 0; transform-origin: top left; }
+.setup-guide .frame-inner iframe { display: block; border: 0; background: var(--bg); }
+.setup-guide .frame-caption { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); width: 100%; }
+.setup-guide .frame-caption h3 { font-family: var(--font-body); font-size: var(--text-sm); font-weight: 600; letter-spacing: 0; }
+.setup-guide .frame-caption .meta { flex-shrink: 0; }
+.setup-guide .frame-note { font-size: var(--text-xs); color: var(--muted); line-height: 1.5; width: 100%; }
+
+.setup-guide .frame.phone { max-width: 264px; }
+.setup-guide .frame-inner.phone { width: 460px; height: 948px; background: var(--fg); border-radius: 50px; box-shadow: 0 26px 60px -24px rgba(0,0,0,.5), inset 0 0 0 1px color-mix(in oklab, var(--bg) 14%, transparent); }
+.setup-guide .frame-inner.phone::before { content: ""; position: absolute; top: 20px; left: 50%; width: 120px; height: 26px; transform: translateX(-50%); border-radius: var(--radius-pill); background: var(--fg); box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--bg) 12%, transparent); z-index: 2; }
+.setup-guide .frame-inner.phone iframe { position: absolute; top: 12px; left: 12px; width: 436px; height: 924px; border-radius: 38px; }
+
+.setup-guide .frame-inner.tablet { width: 1218px; height: 858px; background: var(--fg); border-radius: 28px; box-shadow: var(--elev-raised), inset 0 0 0 1px color-mix(in oklab, var(--bg) 12%, transparent); }
+.setup-guide .frame-inner.tablet iframe { position: absolute; top: 12px; left: 12px; width: 1194px; height: 834px; border-radius: 16px; }
+
+.setup-guide .frame-inner.browser { width: 1194px; height: 900px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--elev-raised); }
+.setup-guide .browser-bar { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-3); background: color-mix(in oklab, var(--surface-warm) 72%, var(--surface)); border-bottom: 1px solid var(--border-soft); }
+.setup-guide .browser-dots { display: flex; gap: 6px; flex-shrink: 0; }
+.setup-guide .browser-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+.setup-guide .browser-url { flex: 1; min-width: 0; height: 24px; display: flex; align-items: center; padding: 0 var(--space-3); border-radius: var(--radius-pill); background: var(--surface); border: 1px solid var(--border-soft); font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.setup-guide .frame-inner.browser iframe { position: absolute; top: 40px; left: 0; width: 1194px; height: 860px; }
+
+/* ── reach / run ─────────────────────────────────────────────────── */
+.setup-guide .env-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.setup-guide .env-table th, .setup-guide .env-table td { text-align: left; padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border-soft); vertical-align: top; }
+.setup-guide .env-table tr:first-child th, .setup-guide .env-table tr:first-child td { border-top: 0; }
+.setup-guide .env-table th { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; color: var(--fg); white-space: nowrap; }
+.setup-guide .env-table td { color: var(--fg-2); }
+.setup-guide .env-table td:first-child { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg); }
+
+/* ── footer ──────────────────────────────────────────────────────── */
+.setup-guide .pagefoot { border-top: 1px solid var(--border); padding-block: var(--space-8); }
+.setup-guide .pagefoot p { font-size: var(--text-xs); color: var(--muted); line-height: 1.6; max-width: 72ch; }
+.setup-guide .pagefoot .row-between { align-items: flex-start; flex-wrap: wrap; gap: var(--space-6); }
+
+/* ── responsive ──────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .setup-guide .container { padding-inline: var(--container-gutter-tablet); }
+  .setup-guide .section { padding-block: clamp(40px, 6vw, var(--section-y-tablet)); }
+  .setup-guide .gallery { grid-template-columns: 1fr; gap: var(--space-8); }
+  .setup-guide .frame.phone { max-width: 260px; }
+  .setup-guide .frame.tablet, .setup-guide .frame.desktop { max-width: 560px; }
+  .setup-guide .facts { grid-template-columns: repeat(2, 1fr); }
+  .setup-guide .topnav nav { display: none; }
+}
+@media (max-width: 768px) {
+  .setup-guide .grid-2, .setup-guide .split { grid-template-columns: 1fr; gap: var(--space-4); }
+  .setup-guide .head-lg h2 { font-size: var(--text-lg); }
+}
