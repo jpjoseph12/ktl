@@ -1,35 +1,51 @@
 import { timingSafeEqual } from 'node:crypto';
-import { createReadStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { createReadStream, createWriteStream, mkdirSync, openSync, readFileSync, readSync, closeSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { config } from './config.mjs';
+import { config, validTimezone } from './config.mjs';
 import * as settings from './settings.mjs';
 import { getPool } from './db.mjs';
 import { gotrueAdmin } from './gotrue-admin.mjs';
 import { bearer, verifyJwt } from './jwt.mjs';
-import { listBackups, runBackup } from './backup.mjs';
+import { listBackups, localDate, runBackup } from './backup.mjs';
+import { probeHealth } from './health.mjs';
+import { createInvite, findInvite, inviteMessage, inviteState, openInvites, tokenFrom, DEFAULT_TTL } from './invites.mjs';
 import { parseServiceAccount, pushStatus } from './push.mjs';
+import { requestRestart, restoreBackup } from './restore.mjs';
 
 /* KTL's own API, behind the web setup and admin pages:
  *
- *   GET  /api/setup                   is this server set up yet?
- *   POST /api/setup/claim             first run: the owner's account, the
- *                                     household, the address — guarded by
- *                                     the setup code from the server's log
- *   GET  /api/admin                   everything the admin page shows
- *   POST /api/admin/people            add someone: account + set-password link
- *   POST /api/admin/people/:id/link   a fresh set-password link
- *   DELETE /api/admin/people/:id      remove someone and their account
- *   PUT  /api/admin/settings          address, sign-ups, email, tunnel
- *   POST /api/admin/email-test        send the owner a password-reset email
- *   PUT|DELETE /api/admin/push        the Firebase key for push notifications
- *   POST /api/admin/backups           take a backup now
- *   GET  /api/admin/backups/:name     download one
- *   POST /api/account/delete          delete your own account
+ *   GET  /api/setup                    is this server set up yet?
+ *   POST /api/setup/claim              first run: the owner's account, the
+ *                                      household, the address — guarded by
+ *                                      the setup code from the server's log
+ *   GET  /api/admin                    everything the admin page shows
+ *   PUT  /api/admin/household          name, how you use KTL, reminder times
+ *   POST /api/admin/people             add someone: account + invite
+ *   PATCH /api/admin/people/:id        change their name, email or password
+ *   POST /api/admin/people/:id/invite  a new invite (cancels the old one)
+ *   POST /api/admin/people/:id/link    a one-hour password-reset link
+ *   POST /api/admin/people/:id/owner   hand the server over to them
+ *   DELETE /api/admin/people/:id       remove someone and their account
+ *   PUT  /api/admin/settings           address, sign-ups, email, tunnel,
+ *                                      proxy, backup schedule
+ *   POST /api/admin/test-address       does this address reach this server?
+ *   POST /api/admin/email-test         send the owner a password-reset email
+ *   PUT|DELETE /api/admin/push         the Firebase key for push notifications
+ *   POST /api/admin/backups            take a backup now
+ *   POST /api/admin/backups/upload     add a backup file (the request body)
+ *   GET  /api/admin/backups/:name      download one
+ *   POST /api/admin/restore            replace everything with a backup
+ *   POST /api/invite/check             what an invite is for, if it's valid
+ *   POST /api/invite/redeem            use an invite to choose a password
+ *   POST /api/account/password-status  does this account have no password yet?
+ *   POST /api/account/delete           delete your own account
  *
  * /api/admin/* is for the household's owner only — the person who set the
  * server up — checked from their sign-in token on every request. */
 
 const MAX_BODY = 64 * 1024;
+const MAX_UPLOAD = 500 * 1024 * 1024;
+const INVITE_TRIES = new Map(); // ip -> { count, until }, for /api/invite/*
 const ATTEMPTS = new Map(); // ip -> { count, until }
 const LOCK_AFTER = 5;
 const LOCK_MS = 15 * 60 * 1000;
@@ -136,8 +152,13 @@ async function requireOwner(req) {
 
 async function overview(hid) {
   const db = getPool();
-  const [{ rows: [household] }, { rows: people }] = await Promise.all([
-    db.query('select id, name from public.households where id = $1', [hid]),
+  const [{ rows: [household] }, { rows: [reminders] }, { rows: people }, invites, health] = await Promise.all([
+    db.query('select id, name, mode from public.households where id = $1', [hid]),
+    db.query(
+      `select details_lead as "detailsLead", to_char(details_time, 'HH24:MI') as "detailsTime",
+              payment_lead as "paymentLead", to_char(payment_time, 'HH24:MI') as "paymentTime"
+         from public.household_reminders where household_id = $1`, [hid]
+    ),
     db.query(
       `select u.id, u.email, coalesce(p.full_name, '') as name, m.role,
               u.last_sign_in_at as "lastSignIn",
@@ -148,18 +169,103 @@ async function overview(hid) {
          left join public.household_members m on m.user_id = u.id and m.household_id = $1
         order by (m.user_id is not null) desc, (m.role = 'owner') desc nulls last, u.created_at`,
       [hid]
-    )
+    ),
+    openInvites(db).catch(() => ({})),
+    probeHealth()
   ]);
+  const backups = listBackups().map((b) => ({ name: b.name, size: b.size, mtime: b.mtime }));
   return {
     version: appVersion(),
     siteUrl: config.siteUrl,
-    household,
-    people,
+    household: { ...household, reminders: reminders || null },
+    people: people.map((p) => ({ ...p, inviteExpiresAt: invites[p.id] || null })),
     maxPeople: MAX_PEOPLE,
     settings: settings.describe(),
+    schedule: { hour: config.backupHour, keep: config.backupKeep, timezone: config.timezone },
     push: pushStatus(),
-    backups: listBackups().map((b) => ({ name: b.name, size: b.size }))
+    health,
+    backups
   };
+}
+
+/* The household's owner, by name, for invite messages. */
+async function ownerName(db, hid) {
+  const { rows: [r] } = await db.query(
+    `select coalesce(p.full_name, '') as name, h.name as household
+       from public.households h
+       left join public.household_members m on m.household_id = h.id and m.role = 'owner'
+       left join public.profiles p on p.id = m.user_id
+      where h.id = $1 limit 1`, [hid]
+  );
+  return { owner: r?.name || '', household: r?.household || '' };
+}
+
+async function makeInvite(db, { hid, userId, createdBy, expiresIn }) {
+  try {
+    const { token, expiresAt } = await createInvite(db, { userId, createdBy, expiresIn: expiresIn || DEFAULT_TTL });
+    const link = `${config.siteUrl}/join#${token}`;
+    const { owner, household } = await ownerName(db, hid);
+    return { link, expiresAt, message: inviteMessage({ owner, household, link, expiresAt, timeZone: config.timezone }) };
+  } catch (err) {
+    if (err.code === 'bad_expiry') throw new HttpError(400, err.code, err.message);
+    throw err;
+  }
+}
+
+/* Limits guesses at invite tokens and account lookups: `allowed` per IP
+   per 15 minutes. */
+function rateLimit(map, ip, allowed) {
+  const now = Date.now();
+  const seen = map.get(ip);
+  const entry = seen && seen.until > now ? seen : { count: 0, until: now + LOCK_MS };
+  entry.count += 1;
+  map.set(ip, entry);
+  if (entry.count > allowed) throw new HttpError(429, 'over_request_rate_limit', 'Too many tries. Wait a few minutes, then try again.');
+}
+
+/* Streams an uploaded backup into the backups folder, checking it's a
+   Postgres dump (they start with "PGDMP") and not too big. */
+function receiveBackup(req) {
+  return new Promise((resolve, reject) => {
+    mkdirSync(config.backupDir, { recursive: true });
+    const time = new Date().toISOString().slice(11, 19).replace(/:/g, '');
+    const name = `ktl-${localDate()}-uploaded-${time}.dump`;
+    const file = path.join(config.backupDir, name);
+    const tmp = `${file}.partial`;
+    const out = createWriteStream(tmp, { mode: 0o640 });
+    let size = 0;
+    let failed = false;
+    const fail = (err) => {
+      if (failed) return;
+      failed = true;
+      out.destroy();
+      rmSync(tmp, { force: true });
+      req.resume();
+      reject(err);
+    };
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > MAX_UPLOAD) fail(new HttpError(413, 'too_large', 'That backup is bigger than 500 MB.'));
+    });
+    req.on('error', fail);
+    out.on('error', fail);
+    out.on('finish', () => {
+      if (failed) return;
+      let head = Buffer.alloc(5);
+      try {
+        const fd = openSync(tmp, 'r');
+        readSync(fd, head, 0, 5, 0);
+        closeSync(fd);
+      } catch { head = Buffer.alloc(0); }
+      if (head.toString('latin1') !== 'PGDMP') {
+        rmSync(tmp, { force: true });
+        return reject(new HttpError(400, 'not_a_backup', 'That isn’t a KTL backup — use a .dump file from the backups list or /data/backups.'));
+      }
+      renameSync(tmp, file);
+      resolve(name);
+    });
+    req.pipe(out);
+  });
 }
 
 async function openItemsFor(db, hid, userId) {
@@ -254,7 +360,7 @@ export function createPortalApi({ clientIp, sendJson, onPushChanged = () => {} }
     },
 
     'POST /api/admin/people': async (req) => {
-      const { hid } = await requireOwner(req);
+      const { hid, userId: ownerId } = await requireOwner(req);
       const body = await readJson(req);
       const name = String(body.name || '').trim();
       const email = String(body.email || '').trim().toLowerCase();
@@ -272,7 +378,212 @@ export function createPortalApi({ clientIp, sendJson, onPushChanged = () => {} }
         "insert into public.household_members (household_id, user_id, role) values ($1, $2, 'member') on conflict do nothing",
         [hid, user.id]
       );
-      return { person: { id: user.id, name, email }, link: await recoveryLink(email) };
+      const invite = await makeInvite(db, { hid, userId: user.id, createdBy: ownerId, expiresIn: body.expiresIn });
+      return { person: { id: user.id, name, email }, invite };
+    },
+
+    'POST /api/admin/people/:id/invite': async (req, { id }) => {
+      const { hid, userId: ownerId } = await requireOwner(req);
+      const body = await readJson(req);
+      const db = getPool();
+      const { rows: [u] } = await db.query('select id from auth.users where id = $1', [id]);
+      if (!u) throw new HttpError(404, 'no_such_person', 'There’s no account like that any more.');
+      return { invite: await makeInvite(db, { hid, userId: id, createdBy: ownerId, expiresIn: body.expiresIn }) };
+    },
+
+    'PATCH /api/admin/people/:id': async (req, { id }) => {
+      const { hid } = await requireOwner(req);
+      const body = await readJson(req);
+      const db = getPool();
+      const { rows: [u] } = await db.query('select id, email from auth.users where id = $1', [id]);
+      if (!u) throw new HttpError(404, 'no_such_person', 'There’s no account like that any more.');
+      const change = {};
+      if ('email' in body) {
+        const email = String(body.email || '').trim().toLowerCase();
+        if (!EMAIL.test(email)) throw new HttpError(400, 'bad_email', 'Enter a valid email address.');
+        if (email !== u.email) { change.email = email; change.email_confirm = true; }
+      }
+      if ('password' in body) {
+        const password = String(body.password || '');
+        if (password.length < 8) throw new HttpError(400, 'weak_password', 'Use a password of at least 8 characters.');
+        change.password = password;
+      }
+      if ('name' in body) {
+        const name = String(body.name || '').replace(/\p{Cc}/gu, '').trim();
+        if (name.length < 2 || name.length > 60) throw new HttpError(400, 'bad_name', 'Enter a name between 2 and 60 characters.');
+        await db.query('update public.profiles set full_name = $2 where id = $1', [id, name]);
+      }
+      if (Object.keys(change).length) {
+        await gotrueAdmin('PUT', `/users/${id}`, change).catch((err) => {
+          throw new HttpError(err.status === 422 ? 409 : 502, 'update_failed',
+            err.status === 422 ? 'Another account already uses that email.' : `Couldn’t save that: ${err.message}`);
+        });
+      }
+      return overview(hid);
+    },
+
+    /* Hands the server over: they become the owner (and can use this
+       page); you stay in the household as a member. */
+    'POST /api/admin/people/:id/owner': async (req, { id }) => {
+      const { hid, userId } = await requireOwner(req);
+      if (id === userId) throw new HttpError(400, 'already_owner', 'You already run this server.');
+      const client = await getPool().connect();
+      try {
+        await client.query('begin');
+        const { rowCount } = await client.query(
+          "update public.household_members set role = 'owner' where household_id = $1 and user_id = $2", [hid, id]
+        );
+        if (!rowCount) throw new HttpError(404, 'not_in_household', 'They need to be in the household first.');
+        await client.query(
+          "update public.household_members set role = 'member' where household_id = $1 and user_id = $2", [hid, userId]
+        );
+        await client.query('commit');
+      } catch (err) {
+        await client.query('rollback').catch(() => {});
+        throw err;
+      } finally {
+        client.release();
+      }
+      return { handedOver: true };
+    },
+
+    'PUT /api/admin/household': async (req) => {
+      const { hid } = await requireOwner(req);
+      const body = await readJson(req);
+      const client = await getPool().connect();
+      try {
+        await client.query('begin');
+        if ('name' in body) {
+          const name = String(body.name || '').replace(/\p{Cc}/gu, '').trim();
+          if (!name || name.length > 60) throw new HttpError(400, 'bad_household', 'Give your household a name (up to 60 characters).');
+          await client.query('update public.households set name = $2 where id = $1', [hid, name]);
+        }
+        if ('mode' in body) {
+          if (!['chase', 'track'].includes(body.mode)) throw new HttpError(400, 'bad_mode', 'Choose chase-and-confirm or tracking only.');
+          await client.query('update public.households set mode = $2 where id = $1', [hid, body.mode]);
+          // As in the app: in tracking only, saying you've paid closes the
+          // line, so anything already marked sent is settled.
+          if (body.mode === 'track') {
+            await client.query("update public.bills set status = 'settled' where household_id = $1 and status = 'sent'", [hid]);
+            await client.query("update public.lending set status = 'settled' where household_id = $1 and status = 'sent'", [hid]);
+          }
+        }
+        if (body.reminders && typeof body.reminders === 'object') {
+          const r = body.reminders;
+          const lead = (v, max) => {
+            const n = Number(v);
+            if (!Number.isInteger(n) || n < 0 || n > max) throw new HttpError(400, 'bad_reminder', `Reminders can be 0 to ${max} days ahead.`);
+            return n;
+          };
+          const time = (v) => {
+            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v))) throw new HttpError(400, 'bad_reminder', 'Times look like 09:00.');
+            return String(v);
+          };
+          const cols = [];
+          const vals = [hid];
+          if ('detailsLead' in r) { vals.push(lead(r.detailsLead, 28)); cols.push(`details_lead = $${vals.length}`); }
+          if ('detailsTime' in r) { vals.push(time(r.detailsTime)); cols.push(`details_time = $${vals.length}`); }
+          if ('paymentLead' in r) { vals.push(lead(r.paymentLead, 28)); cols.push(`payment_lead = $${vals.length}`); }
+          if ('paymentTime' in r) { vals.push(time(r.paymentTime)); cols.push(`payment_time = $${vals.length}`); }
+          if (cols.length) await client.query(`update public.household_reminders set ${cols.join(', ')} where household_id = $1`, vals);
+        }
+        await client.query('commit');
+      } catch (err) {
+        await client.query('rollback').catch(() => {});
+        throw err;
+      } finally {
+        client.release();
+      }
+      return overview(hid);
+    },
+
+    /* Does this address reach this server? Asked from the server itself,
+       so it tests what the outside world (or the tunnel) sees. */
+    'POST /api/admin/test-address': async (req) => {
+      await requireOwner(req);
+      const url = normaliseSiteUrl((await readJson(req)).url);
+      if (!url) throw new HttpError(400, 'bad_url', 'That address doesn’t look right — try something like https://ktl.example.com.');
+      try {
+        const res = await fetch(`${url}/api/config`, { signal: AbortSignal.timeout(8000), redirect: 'follow' });
+        const info = await res.json().catch(() => null);
+        if (!res.ok || info?.app !== 'ktl') return { ok: false, url, message: `Something answered at ${url}, but it isn’t this KTL server.` };
+        return { ok: true, url, message: `${url} reaches this KTL server.` };
+      } catch (err) {
+        return { ok: false, url, message: `Couldn’t reach ${url} from the server (${err.name === 'TimeoutError' ? 'it took too long' : err.cause?.code || err.message}).` };
+      }
+    },
+
+    'POST /api/admin/backups/upload': async (req) => {
+      const { hid } = await requireOwner(req);
+      const name = await receiveBackup(req);
+      return { ...(await overview(hid)), uploaded: name };
+    },
+
+    /* Replaces everything with one of the backups. The browser asks for
+       "REPLACE" to be typed first; the server checks it too. */
+    'POST /api/admin/restore': async (req) => {
+      await requireOwner(req);
+      const body = await readJson(req);
+      if (body.confirm !== 'REPLACE') throw new HttpError(400, 'not_confirmed', 'Type REPLACE to confirm.');
+      const backup = listBackups().find((b) => b.name === body.name);
+      if (!backup) throw new HttpError(404, 'no_such_backup', 'That backup isn’t there any more.');
+      let safety = '';
+      try {
+        await restoreBackup(backup.file, { onSafetyCopy: (f) => { safety = path.basename(f); } });
+      } catch (err) {
+        if (err.code === 'restore_running') throw new HttpError(409, err.code, err.message);
+        if (err.code === 'restore_failed') throw new HttpError(500, err.code, `${err.message} The current data is untouched.`);
+        throw err;
+      }
+      requestRestart();
+      console.log(`gateway: restored ${backup.name} (current data saved as ${safety})`);
+      return { restored: backup.name, safetyCopy: safety };
+    },
+
+    'POST /api/invite/check': async (req) => {
+      rateLimit(INVITE_TRIES, clientIp(req), 20);
+      const token = tokenFrom((await readJson(req)).token);
+      const db = getPool();
+      const row = await findInvite(db, token);
+      const state = inviteState(row);
+      if (state !== 'valid') return { valid: false, state };
+      const hid = await serverHouseholdId(db);
+      const { owner, household } = await ownerName(db, hid);
+      return { valid: true, state, email: row.email, name: row.name, household, owner, expiresAt: row.expires_at };
+    },
+
+    'POST /api/invite/redeem': async (req) => {
+      rateLimit(INVITE_TRIES, clientIp(req), 20);
+      const body = await readJson(req);
+      const token = tokenFrom(body.token);
+      const password = String(body.password || '');
+      if (password.length < 8) throw new HttpError(400, 'weak_password', 'Use a password of at least 8 characters.');
+      const db = getPool();
+      const row = await findInvite(db, token);
+      const state = inviteState(row);
+      if (state !== 'valid') {
+        throw new HttpError(410, `invite_${state}`, state === 'used'
+          ? 'This invite has already been used. If that wasn’t you, tell whoever runs this server.'
+          : 'This invite has run out. Ask whoever runs this server for a new one.');
+      }
+      const client = await db.connect();
+      try {
+        await client.query('begin');
+        // Claim it first, so two people racing with the same link can't both use it.
+        const { rowCount } = await client.query(
+          'update ktl_meta.invites set used_at = now() where id = $1 and used_at is null and cancelled_at is null and expires_at > now()', [row.id]
+        );
+        if (!rowCount) throw new HttpError(410, 'invite_used', 'This invite has already been used.');
+        await gotrueAdmin('PUT', `/users/${row.user_id}`, { password });
+        await client.query('commit');
+      } catch (err) {
+        await client.query('rollback').catch(() => {});
+        if (err instanceof HttpError) throw err;
+        throw new HttpError(502, 'redeem_failed', `Couldn’t set your password: ${err.message}`);
+      } finally {
+        client.release();
+      }
+      return { ok: true, email: row.email };
     },
 
     'POST /api/admin/people/:id/link': async (req, { id }) => {
@@ -333,6 +644,22 @@ export function createPortalApi({ clientIp, sendJson, onPushChanged = () => {} }
         changes.KTL_SMTP_SENDER_NAME = name;
       }
       if ('tunnelToken' in body) changes.CLOUDFLARE_TUNNEL_TOKEN = body.tunnelToken;
+      if ('trustProxy' in body) changes.KTL_TRUST_PROXY = body.trustProxy ? 'true' : 'false';
+      if ('backupHour' in body) {
+        const h = Number(body.backupHour);
+        if (!Number.isInteger(h) || h < 0 || h > 23) throw new HttpError(400, 'bad_hour', 'Choose an hour from 0 to 23.');
+        changes.KTL_BACKUP_HOUR = String(h);
+      }
+      if ('backupKeep' in body) {
+        const n = Number(body.backupKeep);
+        if (!Number.isInteger(n) || n < 0 || n > 365) throw new HttpError(400, 'bad_keep', 'Keep between 0 (nightly backups off) and 365.');
+        changes.KTL_BACKUP_KEEP = String(n);
+      }
+      if ('timezone' in body) {
+        const tz = String(body.timezone || '').trim();
+        if (tz && !validTimezone(tz)) throw new HttpError(400, 'bad_timezone', 'That isn’t a time zone — try something like Europe/London.');
+        changes.KTL_TIMEZONE = tz;
+      }
       const changed = settings.update(changes);
       if (settings.needsRestart(changed)) await settings.waitUntilApplied();
       return overview(hid);
@@ -431,7 +758,7 @@ export function createPortalApi({ clientIp, sendJson, onPushChanged = () => {} }
 
   return async function handlePortal(req, res, p) {
     try {
-      const people = /^\/api\/admin\/people\/([^/]+)(\/link)?$/.exec(p);
+      const people = /^\/api\/admin\/people\/([^/]+)(\/link|\/invite|\/owner)?$/.exec(p);
       if (people && !UUID.test(people[1])) throw new HttpError(404, 'not_found', 'Not found.');
       const backup = /^\/api\/admin\/backups\/([\w.-]+\.dump)$/.exec(p);
       if (backup && req.method === 'GET') return await downloadBackup(req, res, backup[1]);

@@ -5,6 +5,7 @@ import { withClient } from './lib/db.mjs';
 import { gotrueAdmin } from './lib/gotrue-admin.mjs';
 import { importData, jsonSource } from './lib/importer.mjs';
 import { listBackups, runBackup } from './lib/backup.mjs';
+import { restoreBackup } from './lib/restore.mjs';
 
 const HELP = `ktl-admin — manage this KTL server
 
@@ -101,38 +102,14 @@ const commands = {
     console.log(`Backed up to ${file}`);
   },
 
-  /* Replaces everything with a backup, in one transaction: if anything
-     fails, nothing changed. A fresh backup is taken first, just in case. */
+  /* Replaces everything with a backup (see lib/restore.mjs). */
   async restore(file, ...rest) {
     if (!file) {
       const list = listBackups();
       throw new Error(`Usage: ktl-admin restore <file> --yes\n\nBackups:\n${list.map((b) => `  ${b.file}`).join('\n') || '  none'}`);
     }
     if (!rest.includes('--yes')) throw new Error('This replaces ALL data with the backup. Add --yes to go ahead.');
-    const safety = await runBackup({ label: 'before-restore' });
-    console.log(`Current data saved to ${safety}`);
-
-    /* The backup is a whole-database dump. Replaying it over the existing
-       schemas (pg_restore --clean) trips over objects that depend on each
-       other across schemas, so instead: drop KTL's schemas, then load the
-       dump — both in one transaction, so a failure changes nothing. */
-    const { spawn } = await import('node:child_process');
-    await withClient((c) => c.query(
-      "select pg_terminate_backend(pid) from pg_stat_activity where datname = 'postgres' and pid <> pg_backend_pid()"
-    ));
-    const clear = [
-      'drop schema if exists private, ktl_meta, auth, extensions cascade',
-      'drop schema if exists public cascade',
-      'create schema public authorization pg_database_owner'
-    ].join('; ');
-    const sql = spawn('pg_restore', ['-f', '-', file], { stdio: ['ignore', 'pipe', 'inherit'] });
-    const psql = spawn('psql', ['-X', '-q', '-1', '-v', 'ON_ERROR_STOP=1', '-h', '/var/run/postgresql', '-U', 'postgres', '-d', 'postgres', '-c', clear, '-f', '-'], { stdio: ['pipe', 'ignore', 'inherit'] });
-    sql.stdout.pipe(psql.stdin);
-    const [dumpOk, loadOk] = await Promise.all([
-      new Promise((r) => sql.on('close', (code) => r(code === 0))),
-      new Promise((r) => psql.on('close', (code) => r(code === 0)))
-    ]);
-    if (!dumpOk || !loadOk) throw new Error('Restore failed; nothing was changed.');
+    await restoreBackup(file, { onSafetyCopy: (f) => console.log(`Current data saved to ${f}`) });
     console.log('Restored. Now restart the container (docker restart ktl) so every service picks it up.\nEveryone will need to log in again.');
   }
 };

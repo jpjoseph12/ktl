@@ -23,6 +23,7 @@ import { createActivityFeed } from './lib/activity.mjs';
 import { createPushSender } from './lib/push.mjs';
 import { scheduleBackups } from './lib/backup.mjs';
 import { createPortalApi, serverInfo } from './lib/portal-api.mjs';
+import { probeHealth } from './lib/health.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -195,14 +196,7 @@ function live(feed) {
 /* ── health ───────────────────────────────────────────────────────── */
 
 async function health(req, res) {
-  const probe = async (fn) => { try { await fn(); return true; } catch { return false; } };
-  const ok = (r) => { if (!r.ok) throw new Error(String(r.status)); };
-  const [database, auth, api] = await Promise.all([
-    probe(() => getPool().query('select 1')),
-    probe(async () => ok(await fetch(`${config.gotrue}/health`, { signal: AbortSignal.timeout(2000) }))),
-    probe(async () => ok(await fetch(`${config.postgrestAdmin}/ready`, { signal: AbortSignal.timeout(2000) })))
-  ]);
-  const healthy = database && auth && api;
+  const { healthy, database, auth, api } = await probeHealth();
   sendJson(req, res, healthy ? 200 : 503, { status: healthy ? 'ok' : 'degraded', database, auth, api });
 }
 
@@ -287,7 +281,7 @@ export function createHandler({ feed, onPushChanged }) {
         return proxy(req, res, config.postgrest, (p.slice('/rest/v1'.length) || '/') + url.search);
       }
       if (p === '/live') return await liveHandler(req, res, url);
-      if (/^\/api\/(setup|admin|account)(\/|$)/.test(p)) return await portal(req, res, p);
+      if (/^\/api\/(setup|admin|account|invite)(\/|$)/.test(p)) return await portal(req, res, p);
       if (p.startsWith('/api/')) return sendJson(req, res, 404, { error: 'not_found' });
       return await serveStatic(req, res, p);
     } catch (err) {

@@ -1,28 +1,50 @@
 #!/command/with-contenv bash
 # The admin page saves settings to /data/config/settings.env. The gateway
 # reads them as it goes; the sign-in service and the tunnel only read them
-# when they start, so restart those two whenever the file changes. Once
-# sign-in is answering again, record which version of the file is live in
-# /run/ktl/settings.applied — the gateway waits for that before telling the
-# admin page a change has taken effect.
+# when they start, so restart those two when one of their settings changes.
+# Once sign-in is answering again, record which version of the file is live
+# in /run/ktl/settings.applied — the gateway waits for that before telling
+# the admin page a change has taken effect.
+#
+# After a restore from the admin page, the gateway (which isn't root)
+# leaves /data/config/restart.request: sign-in and the data API then
+# restart so they pick up the restored database.
 mkdir -p /run/ktl
 chmod 755 /run/ktl
 file=/data/config/settings.env
+request=/data/config/restart.request
 hash() { md5sum "$file" 2>/dev/null | cut -d' ' -f1; }
+# Only the settings sign-in and the tunnel read at start.
+restart_hash() { grep -E '^(KTL_SITE_URL|KTL_SMTP_[A-Z_]+|CLOUDFLARE_TUNNEL_TOKEN)=' "$file" 2>/dev/null | md5sum | cut -d' ' -f1; }
+wait_for_signin() {
+  for _ in $(seq 1 30); do
+    curl -fsS -o /dev/null http://127.0.0.1:9999/health && return
+    sleep 0.5
+  done
+}
 
 last="$(hash)"
+last_restart="$(restart_hash)"
 echo "$last" > /run/ktl/settings.applied
 while :; do
   sleep 1
+  if [ -e "$request" ]; then
+    rm -f "$request"
+    echo "ktl: restarting sign-in and the data API after a restore"
+    s6-svc -r /run/service/gotrue
+    s6-svc -r /run/service/postgrest
+    wait_for_signin
+  fi
   now="$(hash)"
   [ "$now" = "$last" ] && continue
-  echo "ktl: settings changed, restarting sign-in and tunnel"
-  s6-svc -r /run/service/gotrue
-  s6-svc -r /run/service/cloudflared
-  for _ in $(seq 1 30); do
-    curl -fsS -o /dev/null http://127.0.0.1:9999/health && break
-    sleep 0.5
-  done
+  now_restart="$(restart_hash)"
+  if [ "$now_restart" != "$last_restart" ]; then
+    echo "ktl: settings changed, restarting sign-in and tunnel"
+    s6-svc -r /run/service/gotrue
+    s6-svc -r /run/service/cloudflared
+    wait_for_signin
+    last_restart="$now_restart"
+  fi
   last="$now"
   echo "$now" > /run/ktl/settings.applied
 done

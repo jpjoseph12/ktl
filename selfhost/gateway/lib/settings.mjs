@@ -22,7 +22,11 @@ export const KEYS = {
   smtpPass: 'KTL_SMTP_PASS',
   smtpSender: 'KTL_SMTP_SENDER',
   smtpSenderName: 'KTL_SMTP_SENDER_NAME',
-  tunnelToken: 'CLOUDFLARE_TUNNEL_TOKEN'
+  tunnelToken: 'CLOUDFLARE_TUNNEL_TOKEN',
+  trustProxy: 'KTL_TRUST_PROXY',
+  backupHour: 'KTL_BACKUP_HOUR',
+  backupKeep: 'KTL_BACKUP_KEEP',
+  timezone: 'KTL_TIMEZONE'
 };
 const SECRET = new Set(['KTL_SMTP_PASS', 'CLOUDFLARE_TUNNEL_TOKEN']);
 

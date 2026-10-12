@@ -11,13 +11,23 @@ import { SOCKET_DIR } from './db.mjs';
 
    Restore: ktl-admin restore /data/backups/ktl-YYYY-MM-DD.dump */
 
-const stamp = (d = new Date()) => d.toISOString().slice(0, 10);
+/* Today's date where the server is (YYYY-MM-DD), and the hour there. */
+export function localDate(d = new Date(), timeZone = config.timezone) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+export function localHour(d = new Date(), timeZone = config.timezone) {
+  return Number(new Intl.DateTimeFormat('en-GB', { timeZone, hour: 'numeric', hourCycle: 'h23' }).format(d));
+}
+const stamp = (d = new Date()) => localDate(d);
 
 export function listBackups(dir = config.backupDir) {
   try {
     return readdirSync(dir)
       .filter((f) => /^ktl-\d{4}-\d{2}-\d{2}.*\.dump$/.test(f))
-      .map((f) => ({ file: path.join(dir, f), name: f, size: statSync(path.join(dir, f)).size }))
+      .map((f) => {
+        const st = statSync(path.join(dir, f));
+        return { file: path.join(dir, f), name: f, size: st.size, mtime: st.mtime.toISOString() };
+      })
       .sort((a, b) => a.name.localeCompare(b.name));
   } catch {
     return [];
@@ -48,18 +58,18 @@ export function runBackup({ dir = config.backupDir, label = '' } = {}) {
 }
 
 function prune(dir) {
+  if (config.backupKeep <= 0) return; // nightly backups off: keep what's there
   const nightly = listBackups(dir).filter((b) => /^ktl-\d{4}-\d{2}-\d{2}\.dump$/.test(b.name));
   nightly.slice(0, Math.max(0, nightly.length - config.backupKeep)).forEach((b) => rmSync(b.file, { force: true }));
 }
 
+/* Checked every half hour, so a change of time or "off" on the admin page
+   applies from the next check. */
 export function scheduleBackups() {
-  if (config.backupKeep <= 0) {
-    console.log('gateway: nightly backups off (KTL_BACKUP_KEEP=0)');
-    return;
-  }
   const tick = () => {
+    if (config.backupKeep <= 0) return;
     const now = new Date();
-    if (now.getHours() < config.backupHour) return;
+    if (localHour(now) < config.backupHour) return;
     if (listBackups().some((b) => b.name === `ktl-${stamp(now)}.dump`)) return;
     runBackup()
       .then((file) => console.log(`gateway: backed up to ${file}`))
