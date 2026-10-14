@@ -835,6 +835,10 @@ export function KettleProvider({ children }) {
     if ('detailsTime' in patch) columnPatch.details_time = patch.detailsTime;
     if ('paymentLead' in patch) columnPatch.payment_lead = patch.paymentLead;
     if ('paymentTime' in patch) columnPatch.payment_time = patch.paymentTime;
+    if ('nudgeAfter' in patch) columnPatch.nudge_after = patch.nudgeAfter;
+    if ('quietFrom' in patch) columnPatch.quiet_from = patch.quietFrom;
+    if ('quietTo' in patch) columnPatch.quiet_to = patch.quietTo;
+    if ('weeklyDigest' in patch) columnPatch.weekly_digest = patch.weeklyDigest;
     const { error: err } = await api.from('household_reminders').update(columnPatch).eq('household_id', householdId);
     if (err) throw err;
     await refresh(householdId, you.id);
@@ -891,8 +895,8 @@ export function KettleProvider({ children }) {
      feeds both this list and lib/notifications.js, so what the Alerts
      screen shows can't drift from what actually pings you. */
   const plannedNotifications = useMemo(
-    () => plannedReminders({ bills, reminders, members }),
-    [bills, reminders, members]
+    () => plannedReminders({ bills, reminders, members, mode: household.mode }),
+    [bills, reminders, members, household.mode]
   );
 
   /* Display form for the Alerts screen: the next few, with the firing

@@ -66,10 +66,25 @@ function atDaysBefore(dueISO, days, hhmm, fallbackHour) {
   return at;
 }
 
+/* Quiet hours are off when they start and end at the same time. */
+export const quietHoursOn = (r = {}) => minutesOfDay(r.quietFrom, 22) !== minutesOfDay(r.quietTo, 8);
+
+/* The coming Sunday at 18:00 (today, if it's Sunday before then). */
+function nextSundayEvening(now) {
+  const at = new Date(now);
+  at.setDate(at.getDate() + ((7 - at.getDay()) % 7));
+  at.setHours(18, 0, 0, 0);
+  if (at <= now) at.setDate(at.getDate() + 7);
+  return at;
+}
+
 /* The reminders that should exist right now, soonest first.
-   `now` is injectable so this can be tested without faking the clock. */
-export function plannedReminders({ bills = [], reminders = {}, members = [], now = new Date() } = {}) {
+   `now` is injectable so this can be tested without faking the clock.
+   `mode` is the household's: in tracking only, nobody is chased, so
+   there are no nudges. */
+export function plannedReminders({ bills = [], reminders = {}, members = [], mode = 'chase', now = new Date() } = {}) {
   const out = [];
+  const nudgeAfter = Number(reminders.nudgeAfter) || 0;
 
   bills.forEach((b) => {
     if (!OPEN[b.status] || !b.dueSort) return;
@@ -112,7 +127,47 @@ export function plannedReminders({ bills = [], reminders = {}, members = [], now
         reminders.quietFrom, reminders.quietTo
       )
     });
+
+    /* One follow-up, a while after the money reminder, while the bill is
+       still open. Each phone re-plans as soon as anything changes, so once
+       the share is marked sent and confirmed the follow-up is gone. */
+    if (mode !== 'track' && nudgeAfter > 0) {
+      const paymentAt = atDaysBefore(b.dueSort, reminders.paymentLead, reminders.paymentTime, 18);
+      out.push({
+        id: reminderId(`${b.id}:nudge`),
+        kind: 'nudge',
+        billId: b.id,
+        title: youArePayer ? `Has everyone paid for ${b.name}?` : `Still to confirm: ${b.name}`,
+        sub: `${b.name} · ${nudgeAfter} hours after the money reminder`,
+        body: youArePayer
+          ? `Confirm the shares that have arrived for ${b.name}, so they clear from the balance.`
+          : `If you've sent ${payerName} your share of ${b.name}, mark it as sent so they can confirm it.`,
+        at: applyQuietHours(new Date(paymentAt.getTime() + nudgeAfter * 3600_000), reminders.quietFrom, reminders.quietTo)
+      });
+    }
   });
+
+  /* Sunday evening: what's due in the week ahead. */
+  if (reminders.weeklyDigest !== false) {
+    const at = nextSundayEvening(now);
+    const weekEnd = new Date(at.getTime() + 7 * 86_400_000);
+    const due = bills
+      .filter((b) => OPEN[b.status] && b.dueSort)
+      .map((b) => ({ b, d: new Date(String(b.dueSort).slice(0, 10) + 'T00:00:00') }))
+      .filter(({ d }) => d > at && d <= weekEnd)
+      .sort((x, y) => x.d - y.d);
+    out.push({
+      id: reminderId('weekly-digest'),
+      kind: 'digest',
+      billId: null,
+      title: 'Your week in KTL',
+      sub: 'Every Sunday at 18:00',
+      body: due.length
+        ? `Due this week: ${due.map(({ b, d }) => `${b.name} (${d.getDate()}${ordinalSuffix(d.getDate())})`).join(', ')}.`
+        : 'Nothing due this week.',
+      at
+    });
+  }
 
   return out.filter((r) => r.at > now).sort((a, b) => a.at - b.at);
 }

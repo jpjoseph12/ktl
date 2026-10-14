@@ -156,7 +156,9 @@ async function overview(hid) {
     db.query('select id, name, mode from public.households where id = $1', [hid]),
     db.query(
       `select details_lead as "detailsLead", to_char(details_time, 'HH24:MI') as "detailsTime",
-              payment_lead as "paymentLead", to_char(payment_time, 'HH24:MI') as "paymentTime"
+              payment_lead as "paymentLead", to_char(payment_time, 'HH24:MI') as "paymentTime",
+              nudge_after as "nudgeAfter", to_char(quiet_from, 'HH24:MI') as "quietFrom",
+              to_char(quiet_to, 'HH24:MI') as "quietTo", weekly_digest as "weeklyDigest"
          from public.household_reminders where household_id = $1`, [hid]
     ),
     db.query(
@@ -484,7 +486,15 @@ export function createPortalApi({ clientIp, sendJson, onPushChanged = () => {} }
           if ('detailsLead' in r) { vals.push(lead(r.detailsLead, 28)); cols.push(`details_lead = $${vals.length}`); }
           if ('detailsTime' in r) { vals.push(time(r.detailsTime)); cols.push(`details_time = $${vals.length}`); }
           if ('paymentLead' in r) { vals.push(lead(r.paymentLead, 28)); cols.push(`payment_lead = $${vals.length}`); }
-          if ('paymentTime' in r) { vals.push(time(r.paymentTime)); cols.push(`payment_time = $${vals.length}`); }
+          if ('paymentTime' in r) { vals.push(time(r.paymentTime)); cols.push(`payment_time = ${vals.length}`); }
+          if ('nudgeAfter' in r) {
+            const n = Number(r.nudgeAfter);
+            if (!Number.isInteger(n) || n < 0 || n > 168) throw new HttpError(400, 'bad_reminder', 'Nudge after 0 (off) to 168 hours.');
+            vals.push(n); cols.push(`nudge_after = ${vals.length}`);
+          }
+          if ('quietFrom' in r) { vals.push(time(r.quietFrom)); cols.push(`quiet_from = ${vals.length}`); }
+          if ('quietTo' in r) { vals.push(time(r.quietTo)); cols.push(`quiet_to = ${vals.length}`); }
+          if ('weeklyDigest' in r) { vals.push(Boolean(r.weeklyDigest)); cols.push(`weekly_digest = ${vals.length}`); }
           if (cols.length) await client.query(`update public.household_reminders set ${cols.join(', ')} where household_id = $1`, vals);
         }
         await client.query('commit');

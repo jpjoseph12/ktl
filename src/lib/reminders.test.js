@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { applyQuietHours, plannedReminders, reminderId } from './reminders';
+import { applyQuietHours, plannedReminders, quietHoursOn, reminderId } from './reminders';
 
+// The bill reminders on their own: no nudge, no Sunday summary (tested below).
 const REMINDERS = {
   detailsLead: 5, detailsTime: '09:00',
   paymentLead: 2, paymentTime: '18:00',
-  quietFrom: '22:00', quietTo: '08:00'
+  quietFrom: '22:00', quietTo: '08:00',
+  nudgeAfter: 0, weeklyDigest: false
 };
 
 const MEMBERS = [
@@ -171,5 +173,54 @@ describe('reminderId', () => {
       expect(id).toBeGreaterThanOrEqual(0);
       expect(id).toBeLessThan(2147483647);
     });
+  });
+});
+
+describe('plannedReminders — the settings in House → Reminders', () => {
+  it('follows up after the money reminder, while the bill is open', () => {
+    const out = plannedReminders({ bills: [bill()], reminders: { ...REMINDERS, nudgeAfter: 24 }, members: MEMBERS, now: NOW });
+    const nudge = out.find((r) => r.kind === 'nudge');
+    expect(nudge.title).toMatch(/still to confirm: council tax/i);
+    expect(nudge.body).toMatch(/mark it as sent so they can confirm/i);
+    // Money reminder 13 Oct 18:00, +24 hours = 14 Oct 18:00.
+    expect(nudge.at.getDate()).toBe(14);
+    expect(nudge.at.getHours()).toBe(18);
+  });
+
+  it('asks the payer to confirm, rather than to send', () => {
+    const out = plannedReminders({ bills: [bill({ payer: 'you', payerId: 'me' })], reminders: { ...REMINDERS, nudgeAfter: 24 }, members: MEMBERS, now: NOW });
+    expect(out.find((r) => r.kind === 'nudge').title).toMatch(/has everyone paid/i);
+  });
+
+  it('never nudges in tracking only, or with nudges off', () => {
+    const tracking = plannedReminders({ bills: [bill()], reminders: { ...REMINDERS, nudgeAfter: 24 }, members: MEMBERS, mode: 'track', now: NOW });
+    expect(tracking.some((r) => r.kind === 'nudge')).toBe(false);
+    const off = plannedReminders({ bills: [bill()], reminders: REMINDERS, members: MEMBERS, now: NOW });
+    expect(off.some((r) => r.kind === 'nudge')).toBe(false);
+  });
+
+  it('sums up the week ahead on Sunday evening', () => {
+    const out = plannedReminders({
+      bills: [bill({ dueSort: '2026-10-06' }), bill({ id: 'b2', name: 'Broadband', dueSort: '2026-10-20' })],
+      reminders: { ...REMINDERS, weeklyDigest: true }, members: MEMBERS, now: NOW
+    });
+    const digest = out.find((r) => r.kind === 'digest');
+    expect(digest.at.getDay()).toBe(0); // Sunday
+    expect(digest.at.getDate()).toBe(4); // 1 Oct 2026 is a Thursday
+    expect(digest.at.getHours()).toBe(18);
+    expect(digest.body).toBe('Due this week: Council Tax (6th).');
+  });
+
+  it('says so when nothing is due, and stays quiet when turned off', () => {
+    const on = plannedReminders({ bills: [], reminders: { ...REMINDERS, weeklyDigest: true }, members: MEMBERS, now: NOW });
+    expect(on[0].body).toBe('Nothing due this week.');
+    expect(plannedReminders({ bills: [], reminders: REMINDERS, members: MEMBERS, now: NOW })).toEqual([]);
+  });
+
+  it('treats the same start and end as quiet hours off', () => {
+    expect(quietHoursOn({ quietFrom: '22:00', quietTo: '08:00' })).toBe(true);
+    expect(quietHoursOn({ quietFrom: '00:00', quietTo: '00:00' })).toBe(false);
+    const late = plannedReminders({ bills: [bill()], reminders: { ...REMINDERS, paymentTime: '23:30', quietFrom: '00:00', quietTo: '00:00' }, members: MEMBERS, now: NOW });
+    expect(late[0].at.getHours()).toBe(23);
   });
 });

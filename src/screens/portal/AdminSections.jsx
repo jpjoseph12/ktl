@@ -91,10 +91,11 @@ const MODES = [
 
 export function HouseholdSection({ admin }) {
   const { data, setData } = admin;
-  const r = data.household.reminders || { detailsLead: 5, detailsTime: '09:00', paymentLead: 2, paymentTime: '18:00' };
+  const r = { detailsLead: 5, detailsTime: '09:00', paymentLead: 2, paymentTime: '18:00', nudgeAfter: 24, quietFrom: '22:00', quietTo: '08:00', weeklyDigest: true, ...(data.household.reminders || {}) };
   const [form, setForm] = useState(() => ({
     name: data.household.name || '', mode: data.household.mode || 'chase',
-    detailsLead: String(r.detailsLead), detailsTime: r.detailsTime, paymentLead: String(r.paymentLead), paymentTime: r.paymentTime
+    detailsLead: String(r.detailsLead), detailsTime: r.detailsTime, paymentLead: String(r.paymentLead), paymentTime: r.paymentTime,
+    nudge: r.nudgeAfter > 0, quiet: r.quietFrom !== r.quietTo, digest: r.weeklyDigest !== false
   }));
   const { busy, run, feedback } = useSaver();
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -105,7 +106,12 @@ export function HouseholdSection({ admin }) {
       body: {
         name: form.name,
         mode: form.mode,
-        reminders: { detailsLead: Number(form.detailsLead), detailsTime: form.detailsTime, paymentLead: Number(form.paymentLead), paymentTime: form.paymentTime }
+        reminders: {
+          detailsLead: Number(form.detailsLead), detailsTime: form.detailsTime, paymentLead: Number(form.paymentLead), paymentTime: form.paymentTime,
+          nudgeAfter: form.nudge ? (r.nudgeAfter > 0 ? r.nudgeAfter : 24) : 0,
+          ...(form.quiet ? (r.quietFrom !== r.quietTo ? {} : { quietFrom: '22:00', quietTo: '08:00' }) : { quietFrom: '00:00', quietTo: '00:00' }),
+          weeklyDigest: form.digest
+        }
       }
     }));
   }, 'Saved. Everyone sees it straight away.');
@@ -162,6 +168,20 @@ export function HouseholdSection({ admin }) {
               <input className="input num-input" id="payment-time" type="time" value={form.paymentTime} onChange={set('paymentTime')} />
             </div>
           </div>
+          {[
+            ['nudge', 'Nudge if nobody confirms', 'One follow-up a day after the money reminder, while a bill is still open.'],
+            ['quiet', 'Quiet hours', 'Nothing between 22:00 and 08:00 — reminders wait until morning.'],
+            ['digest', 'Sunday summary', 'Sunday at 18:00: what’s due in the week ahead.']
+          ].map(([key, title, sub]) => (
+            <div className="row-between" key={key}>
+              <span className="grow">
+                <span className="body-sm" style={{ display: 'block' }}>{title}</span>
+                <span className="meta">{sub}</span>
+              </span>
+              <button type="button" className="switch" role="switch" aria-checked={form[key]} aria-label={title}
+                onClick={() => setForm((f) => ({ ...f, [key]: !f[key] }))} />
+            </div>
+          ))}
         </div>
       </section>
 

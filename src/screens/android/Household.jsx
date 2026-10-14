@@ -9,6 +9,7 @@ import CopyButton from '../../components/CopyButton';
 import Bell from '../../components/Bell';
 import ChangePassword from '../../components/ChangePassword';
 import ServerSection from '../../components/ServerSection';
+import { quietHoursOn } from '../../lib/reminders';
 import SecuritySection from '../../components/LockSettings';
 import { useKettle } from '../../context/KettleContext';
 import { useScreen } from '../../context/ScreenContext';
@@ -37,13 +38,25 @@ const MODE_POINTS = {
   ]
 };
 
-function Switch({ label, onLabel, offLabel }) {
+/* A reminder setting saved for the whole household. Each phone re-plans
+   its reminders from it as soon as it changes. */
+function SavedSwitch({ label, on, onLabel, offLabel, save }) {
   const { toast } = useScreen();
-  const [on, setOn] = useState(true);
+  const [busy, setBusy] = useState(false);
   return (
     <button
-      className="switch" role="switch" aria-checked={on} aria-label={label}
-      onClick={() => { setOn(!on); toast(on ? offLabel : onLabel); }}
+      className="switch" role="switch" aria-checked={on} aria-label={label} disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await save(!on);
+          toast(on ? offLabel : onLabel);
+        } catch {
+          toast('That didn’t save — try again.');
+        } finally {
+          setBusy(false);
+        }
+      }}
     />
   );
 }
@@ -323,25 +336,31 @@ function HouseholdBody({ tablet = false }) {
               <span className="glyph on-warm"><Icon name="clock" size={18} /></span>
               <span className="grow">
                 <span className="item-title" style={{ display: 'block' }}>Nudge if nobody confirms</span>
-                <span className="item-sub">After {K.data.reminders.nudgeAfter} hours, once per item</span>
+                <span className="item-sub">{K.data.reminders.nudgeAfter > 0 ? `After ${K.data.reminders.nudgeAfter} hours, once per item` : 'Off'}</span>
               </span>
-              <Switch label="Nudge if nobody confirms" onLabel="Nudges back on" offLabel="Nudges off — nothing will chase a missing confirmation" />
+              <SavedSwitch label="Nudge if nobody confirms" on={K.data.reminders.nudgeAfter > 0}
+                save={(v) => K.updateReminders({ nudgeAfter: v ? 24 : 0 })}
+                onLabel="Nudges back on" offLabel="Nudges off — nothing will chase a missing confirmation" />
             </div>
             <div className="item">
               <span className="glyph on-warm"><Icon name="bell" size={18} /></span>
               <span className="grow">
                 <span className="item-title" style={{ display: 'block' }}>Quiet hours</span>
-                <span className="item-sub">Nothing between {K.data.reminders.quietFrom} and {K.data.reminders.quietTo}</span>
+                <span className="item-sub">{quietHoursOn(K.data.reminders) ? `Nothing between ${K.data.reminders.quietFrom} and ${K.data.reminders.quietTo}` : 'Off — reminders can arrive at any time'}</span>
               </span>
-              <Switch label="Quiet hours" onLabel="Quiet hours on" offLabel="Quiet hours off" />
+              <SavedSwitch label="Quiet hours" on={quietHoursOn(K.data.reminders)}
+                save={(v) => K.updateReminders(v ? { quietFrom: '22:00', quietTo: '08:00' } : { quietFrom: '00:00', quietTo: '00:00' })}
+                onLabel="Quiet hours on" offLabel="Quiet hours off" />
             </div>
             <div className="item">
               <span className="glyph on-warm"><Icon name="calendar" size={18} /></span>
               <span className="grow">
                 <span className="item-title" style={{ display: 'block' }}>Sunday summary</span>
-                <span className="item-sub">What’s due, what’s owed, what’s unconfirmed</span>
+                <span className="item-sub">{K.data.reminders.weeklyDigest !== false ? 'Sunday at 18:00: what’s due in the week ahead' : 'Off'}</span>
               </span>
-              <Switch label="Sunday summary" onLabel="Sunday summary on" offLabel="Sunday summary off" />
+              <SavedSwitch label="Sunday summary" on={K.data.reminders.weeklyDigest !== false}
+                save={(v) => K.updateReminders({ weeklyDigest: v })}
+                onLabel="Sunday summary on" offLabel="Sunday summary off" />
             </div>
           </div>
         </section>

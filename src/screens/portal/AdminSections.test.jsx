@@ -78,11 +78,16 @@ describe('Admin — Household', () => {
     expect(screen.getByText(/already marked as sent is settled/)).toBeInTheDocument();
     await user.clear(screen.getByLabelText('Send the money (days before)'));
     await user.type(screen.getByLabelText('Send the money (days before)'), '3');
+    await user.click(screen.getByRole('switch', { name: 'Nudge if nobody confirms' }));
+    await user.click(screen.getByRole('switch', { name: 'Quiet hours' }));
     await user.click(screen.getByRole('button', { name: 'Save household' }));
 
     expect(apiFetch).toHaveBeenCalledWith('/api/admin/household', {
       method: 'PUT',
-      body: { name: 'The Burrow', mode: 'track', reminders: { detailsLead: 5, detailsTime: '09:00', paymentLead: 3, paymentTime: '18:00' } }
+      body: {
+        name: 'The Burrow', mode: 'track',
+        reminders: { detailsLead: 5, detailsTime: '09:00', paymentLead: 3, paymentTime: '18:00', nudgeAfter: 0, quietFrom: '00:00', quietTo: '00:00', weeklyDigest: true }
+      }
     });
     expect(a.setData).toHaveBeenCalled();
   });
