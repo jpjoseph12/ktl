@@ -1,7 +1,7 @@
 {
   "name": "ktl",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Shared household bills, with everyone's own finances kept private. Self-hosted.",
   "license": "AGPL-3.0-only",
   "type": "module",
