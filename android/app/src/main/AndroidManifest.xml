@@ -49,6 +49,15 @@
                 <data android:scheme="ktl" android:host="join" />
             </intent-filter>
 
+            <!-- A server's /get page (where the admin page's QR code leads):
+                 ktl://connect?server=… connects the app to that server. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ktl" android:host="connect" />
+            </intent-filter>
+
         </activity>
 
         <provider

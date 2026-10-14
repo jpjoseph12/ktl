@@ -13,9 +13,10 @@ import LoadingScreen from './components/LoadingScreen';
 import AndroidOnboarding, { SetPasswordScreen } from './screens/android/Onboarding';
 import { hasServer, SERVER_URL } from './lib/api';
 import Connect from './screens/Connect';
-import Join, { InviteSwitch } from './screens/Join';
+import Join, { InviteSwitch, ServerSwitch } from './screens/Join';
+import GetApp from './screens/GetApp';
 import Welcome from './screens/Welcome';
-import { clearPendingInvite, inviteDone, parseInvite, readPendingInvite, sameServer, savePendingInvite } from './lib/invite';
+import { clearPendingInvite, inviteDone, parseConnect, parseInvite, readPendingInvite, sameServer, savePendingInvite } from './lib/invite';
 import Setup from './screens/Setup';
 import Admin from './screens/Admin';
 import AndroidHome from './screens/android/Home';
@@ -135,6 +136,7 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/android/onboarding" replace />} />
         <Route path="/setup" element={<Setup />} />
         <Route path="/join" element={<Join />} />
+        <Route path="/get" element={<GetApp />} />
         <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
         <Route path="/admin/:section" element={<RequireAuth><Admin /></RequireAuth>} />
         <Route path="/android/onboarding" element={<RedirectIfSignedIn><AndroidOnboarding /></RedirectIfSignedIn>} />
@@ -167,9 +169,12 @@ function useNativeStatusBar() {
    on a phone that hasn't picked a server yet. Kept until it's used. */
 function useInvite() {
   const [invite, setInvite] = useState(readPendingInvite);
+  const [connectTo, setConnectTo] = useState(null);
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;
     const take = (url) => {
+      const connect = parseConnect(url);
+      if (connect) { setConnectTo(connect.server); return; }
       if (!url || !url.startsWith('ktl://join')) return;
       const found = parseInvite(url);
       if (!found || inviteDone(found.token)) return;
@@ -180,16 +185,20 @@ function useInvite() {
     const listener = CapApp.addListener('appUrlOpen', ({ url }) => take(url));
     return () => { listener.then((l) => l.remove()); };
   }, []);
-  return [invite, setInvite];
+  return [invite, setInvite, connectTo, setConnectTo];
 }
 
 export default function App() {
   useNativeStatusBar();
-  const [invite, setInvite] = useInvite();
+  const [invite, setInvite, connectTo, setConnectTo] = useInvite();
   // An invite for another server (or before any server is chosen): say
   // where it leads, then switch to it.
   if (invite && !sameServer(invite.server, SERVER_URL)) {
     return <InviteSwitch invite={invite} onCancel={() => { clearPendingInvite(); setInvite(null); }} />;
+  }
+  // A server's /get page: connect this app to it.
+  if (connectTo && !sameServer(connectTo, SERVER_URL)) {
+    return <ServerSwitch server={connectTo} onCancel={() => setConnectTo(null)} />;
   }
   // The Android app has to be told which server to use before anything
   // else can run; the web app always uses the server that served it.

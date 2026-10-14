@@ -5,7 +5,7 @@ import PhoneShell from '../components/PhoneShell';
 import { TabletCenteredShell } from '../components/tablet/TabletShell';
 import { useAuth } from '../context/AuthContext';
 import useIsTablet, { CENTERED_QUERY } from '../lib/useIsTablet';
-import { IS_NATIVE, SERVER_URL, setServer } from '../lib/api';
+import { fetchServerInfo, IS_NATIVE, SERVER_URL, setServer } from '../lib/api';
 import { appInviteLink, checkInvite, clearPendingInvite, readPendingInvite, redeemInvite, tokenFromHash } from '../lib/invite';
 import { MIN_PASSWORD_LENGTH, validPassword } from '../lib/validation';
 import { PasswordField, authMessage } from './android/Onboarding';
@@ -143,6 +143,37 @@ export default function Join() {
         </button>
         <p className="meta splash-shortcut">This invite works once, until {new Date(info.expiresAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.</p>
       </form>
+    </Frame>
+  );
+}
+
+/* In the app: a ktl://connect link (from a server's /get page) for a
+   server this app isn't on. Says where it leads, then switches. */
+export function ServerSwitch({ server, onCancel }) {
+  const host = (() => { try { return new URL(server).host; } catch { return server; } })();
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function go() {
+    setBusy(true);
+    setError('');
+    try {
+      const info = await fetchServerInfo(server);
+      setServer(info.url);
+      window.location.replace('/android/onboarding');
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }
+  return (
+    <Frame>
+      <Brand title="Connect to KTL" tagline={`Use the KTL server at ${host}?`} />
+      <div className="splash-form stack">
+        {SERVER_URL && <p className="meta">This app is connected to {new URL(SERVER_URL).host}. Connecting switches it to {host}.</p>}
+        {error && <p className="hint"><Icon name="alert" size={16} /><span>{error}</span></p>}
+        <button className="btn btn-primary btn-block" disabled={busy} onClick={go}>{busy ? 'Checking…' : 'Connect'}</button>
+        <button className="btn btn-ghost btn-block" onClick={onCancel}>Not now</button>
+      </div>
     </Frame>
   );
 }

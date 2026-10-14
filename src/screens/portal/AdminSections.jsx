@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from '../../components/Icon';
-import { AddressCard, FromContainer, SignupCard, useSaver } from './SettingsCards';
+import { AddressCard, AppCard, FromContainer, SignupCard, useSaver } from './SettingsCards';
 import { apiFetch } from '../../lib/api';
 
 /* The admin page's own sections — the ones that aren't a single settings
@@ -219,6 +219,7 @@ export function AccessSection({ admin }) {
   return (
     <>
       <AddressCard admin={admin} />
+      <AppCard siteUrl={data.siteUrl} />
       <SignupCard admin={admin} />
       <section className="stack">
         <div className="section-head"><h2>Reverse proxy</h2><span className="meta">{on ? 'Trusted' : 'Not trusted'}</span></div>

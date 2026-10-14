@@ -30,6 +30,19 @@ export function tokenFromHash(hash) {
   return m ? m[0] : '';
 }
 
+/* ktl://connect?server=<address>: open the app on a server, from the /get
+   page the admin page's QR code leads to. No invite — just the address. */
+export function appConnectLink(server) {
+  return `ktl://connect?server=${encodeURIComponent(server)}`;
+}
+
+export function parseConnect(url) {
+  const m = /^ktl:\/\/connect\?server=([^#&\s]+)/.exec(String(url || ''));
+  if (!m) return null;
+  const server = normaliseServerUrl(decodeURIComponent(m[1]));
+  return server ? { server } : null;
+}
+
 /* The link the /join page offers to open the invite in the app. */
 export function appInviteLink(server, token) {
   return `ktl://join?server=${encodeURIComponent(server)}#${token}`;

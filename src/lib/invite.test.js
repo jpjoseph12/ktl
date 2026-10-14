@@ -39,3 +39,18 @@ describe('invites', () => {
     expect(sameServer('', 'https://ktl.example.com')).toBe(false);
   });
 });
+
+describe('connect links (the /get page’s “Open in the KTL app”)', () => {
+  it('round-trips a server through ktl://connect', async () => {
+    const { appConnectLink, parseConnect } = await import('./invite');
+    expect(parseConnect(appConnectLink('https://ktl.example.com'))).toEqual({ server: 'https://ktl.example.com' });
+    expect(parseConnect('ktl://connect?server=http%3A%2F%2F192.168.1.20%3A8095')).toEqual({ server: 'http://192.168.1.20:8095' });
+  });
+
+  it('ignores anything else', async () => {
+    const { parseConnect } = await import('./invite');
+    expect(parseConnect('ktl://join?server=https%3A%2F%2Fx#tok')).toBeNull();
+    expect(parseConnect('ktl://connect?server=ftp%3A%2F%2Fx')).toBeNull();
+    expect(parseConnect(undefined)).toBeNull();
+  });
+});

@@ -3,6 +3,7 @@ import Icon from '../../components/Icon';
 import CopyButton from '../../components/CopyButton';
 import { api, apiFetch, SERVER_URL } from '../../lib/api';
 import { saveFile } from '../../lib/saveFile';
+import QrCode from '../../components/QrCode';
 
 /* The server settings on the setup and admin pages. Each card saves on
    its own. A setting the container's environment fixes is shown, but
@@ -412,10 +413,13 @@ export function AppCard({ siteUrl = SERVER_URL }) {
     <section className="stack">
       <div className="section-head"><h2>The app</h2></div>
       <div className="card stack-sm">
-        <p className="body-sm">
-          On a computer or tablet, just open <strong>{siteUrl}</strong>. In the KTL Android app, enter that address when it
-          asks which server to use.
-        </p>
+        <div className="row" style={{ gap: 'var(--space-4)', alignItems: 'center', flexWrap: 'wrap' }}>
+          <QrCode text={`${siteUrl}/get`} size={152} label="QR code: get KTL on a phone, connected to this server" />
+          <p className="body-sm grow" style={{ minWidth: 200 }}>
+            Scan this with a phone to get KTL and open it on this server — no typing the address. On a computer or tablet,
+            just open <strong>{siteUrl}</strong>; in the Android app, enter that address when it asks which server to use.
+          </p>
+        </div>
       </div>
     </section>
   );

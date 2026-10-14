@@ -4,6 +4,7 @@ import CopyButton from '../../components/CopyButton';
 import { PasswordField } from '../android/Onboarding';
 import { apiFetch } from '../../lib/api';
 import { shareText } from '../../lib/share';
+import QrCode from '../../components/QrCode';
 import { validEmail, validName, validPassword, MIN_PASSWORD_LENGTH } from '../../lib/validation';
 
 /* Who's on this server. Adding someone creates their account and gives
@@ -46,6 +47,10 @@ function InviteBox({ person, invite }) {
         KTL fills in this server, and they choose a password.
       </p>
       <pre className="body-sm" style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit' }}>{invite.message}</pre>
+      <div className="row" style={{ gap: 'var(--space-3)', alignItems: 'center' }}>
+        <QrCode text={invite.link} size={128} label={`QR code: ${person.name || 'their'} invite`} />
+        <p className="meta grow">With them? They can scan this from your screen instead.</p>
+      </div>
       <div className="row" style={{ gap: 'var(--space-2)', flexWrap: 'wrap' }}>
         <button type="button" className="btn btn-primary btn-sm" onClick={share}><Icon name="share" size={16} />Share</button>
         <CopyButton className="btn btn-secondary btn-sm" text={invite.message} toastMsg="Invite copied">
