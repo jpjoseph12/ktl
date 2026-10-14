@@ -109,6 +109,7 @@ async function photograph() {
   for (const [kind, options] of Object.entries(KINDS)) {
     const context = await browser.newContext({ ...options, colorScheme: 'light' });
     const page = await context.newPage();
+    page.on('pageerror', (err) => console.error(`  [${kind} page error] ${String(err.stack || err).slice(0, 1200)}`));
     page.on('console', (m) => { if (m.type() === 'error') console.error(`  [${kind} console] ${m.text().slice(0, 300)}`); });
     await page.goto(`${BASE}/android/onboarding`);
     await page.getByRole('button', { name: 'Log in' }).click();
