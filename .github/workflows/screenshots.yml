@@ -1,0 +1,30 @@
+name: Screenshots
+
+# Photographs the app for the guide (docs/screens), from a throwaway server
+# with a made-up household. Run it by hand after a visible change; the
+# pictures come back as an artifact to check and commit.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: docker build -f selfhost/Dockerfile -t ktl:latest .
+      - run: node scripts/e2e-server.mjs
+      - run: npm i --no-save playwright@1.47.2 && npx playwright install --with-deps chromium
+      - run: node scripts/screenshots.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screens
+          path: docs/screens/
+      - name: Server log
+        if: failure()
+        run: docker logs ktl-e2e
