@@ -58,6 +58,17 @@ describe('WalkthroughContext', () => {
     expect(localStorage.getItem('ktl:walkthrough-seen:u1')).toBe('1');
   });
 
+  it('never starts before the first-run welcome is done, even on a Home screen it’s about to leave', () => {
+    useKettle.mockReturnValue(mockK({ you: { id: 'u1', firstRunDone: false } }));
+    const { result, rerender } = setup('/android/home');
+    expect(result.current.active).toBe(false);
+    expect(localStorage.getItem('ktl:walkthrough-seen:u1')).toBeNull();
+
+    useKettle.mockReturnValue(mockK({ you: { id: 'u1', firstRunDone: true } }));
+    rerender();
+    expect(result.current.active).toBe(true);
+  });
+
   it('never starts over the setup or admin pages', () => {
     expect(setup('/setup').result.current.active).toBe(false);
     expect(setup('/admin/people').result.current.active).toBe(false);

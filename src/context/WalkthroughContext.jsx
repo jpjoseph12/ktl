@@ -170,7 +170,9 @@ export function WalkthroughProvider({ children }) {
      but only once the household has really loaded (until then it looks
      empty, which used to start the tour for households with bills), and
      only inside the app itself, never over setup, admin or sign-in. */
-  const householdLoaded = !K.loading && !!K.data.household?.id && !M.loading;
+  // Not before the first-run welcome is done either: it runs first, and
+  // ends by offering the tour itself.
+  const householdLoaded = !K.loading && !!K.data.household?.id && !M.loading && K.you?.firstRunDone !== false;
   const inApp = location.pathname.startsWith('/android/') && location.pathname !== '/android/onboarding';
   useEffect(() => {
     if (!user || !householdLoaded || !inApp || active) return;
