@@ -225,9 +225,20 @@ cd selfhost/gateway && npm ci && npm test   # server tests
 
 ## Releasing
 
-For maintainers. A version tag builds and publishes the server image
-(`image.yml`) and builds the signed APK onto a draft GitHub release
-(`release.yml`), which you then look over and publish.
+For maintainers. **Every release ships a signed APK, signed with the
+same release key every time** — otherwise phones can't update from one
+version to the next. This is enforced, not just expected. A version tag
+runs `release.yml`, which:
+
+1. builds the public APK and checks its signature against KTL's release
+   key, whose certificate fingerprint is pinned in
+   `android/release-cert.sha256`. An unsigned APK, or one signed with any
+   other key, stops the release;
+2. only then publishes the server image (`image.yml`);
+3. puts the APK and its SHA-256 on a draft GitHub release, which you look
+   over and publish.
+
+`npm run android:apk` runs the same check locally.
 
 ```bash
 npm version minor            # 1.0.0 → 1.1.0: package.json, a commit and the v1.1.0 tag

@@ -36,6 +36,42 @@ if (!fs.existsSync(built)) {
   console.error(`No APK at ${built}.`);
   process.exit(1);
 }
+/* Every release is signed with KTL's release key — the same one each time,
+   or phones can't update from one version to the next. The key's public
+   certificate fingerprint is pinned in android/release-cert.sha256; an APK
+   that's unsigned, or signed with anything else, stops the release here. */
+function apksigner() {
+  const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT
+    || (process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Android', 'Sdk'));
+  const tools = sdk && path.join(sdk, 'build-tools');
+  if (!tools || !fs.existsSync(tools)) return null;
+  const versions = fs.readdirSync(tools).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  for (const v of versions.reverse()) {
+    const bin = path.join(tools, v, process.platform === 'win32' ? 'apksigner.bat' : 'apksigner');
+    if (fs.existsSync(bin)) return bin;
+  }
+  return null;
+}
+const signer = apksigner();
+if (!signer) {
+  console.error('Can’t find apksigner in the Android SDK build-tools, so the release can’t be checked. Set ANDROID_HOME.');
+  process.exit(1);
+}
+const check = spawnSync(process.platform === 'win32' ? `"${signer}"` : signer, ['verify', '--print-certs', `"${built}"`], {
+  encoding: 'utf8', shell: true
+});
+const fingerprint = /Signer #1 certificate SHA-256 digest:\s*([0-9a-f]{64})/i.exec(check.stdout || '')?.[1]?.toLowerCase();
+const pinned = fs.readFileSync(path.join(root, 'android', 'release-cert.sha256'), 'utf8').trim().toLowerCase();
+if (check.status !== 0 || !fingerprint) {
+  console.error(`The APK isn’t properly signed:\n${(check.stdout || '') + (check.stderr || '')}`);
+  process.exit(1);
+}
+if (fingerprint !== pinned) {
+  console.error(`The APK is signed with the wrong key.\n  signed with: ${fingerprint}\n  KTL’s key:   ${pinned}\nPhones with KTL installed couldn’t update to it. Use the release key in android/keystore.properties (or the KTL_KEYSTORE_* secrets).`);
+  process.exit(1);
+}
+console.log(`\nSigned with KTL’s release key (${fingerprint.slice(0, 12)}…).`);
+
 const outDir = path.join(root, 'release');
 fs.mkdirSync(outDir, { recursive: true });
 const name = `ktl-${version}.apk`;

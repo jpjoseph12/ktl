@@ -26,6 +26,11 @@ cd selfhost/gateway && npm test
 - **Database changes** go in a new file in `db/migrations/`. Never edit
   one that has been released, because servers that already ran it won't
   run it again.
+- **Releases** are always signed: the release workflow stops unless the
+  APK is signed with KTL's release key (`android/release-cert.sha256`),
+  and the server image is only published after that. Never change the
+  pinned fingerprint to make a release pass. A new key would mean
+  everyone reinstalling the app. See README → Releasing.
 - **Bugs:** open an issue with steps to reproduce, and the server log
   (`docker logs ktl`) if it's server-side. Remove anything personal from
   logs first.

@@ -1,8 +1,12 @@
-name: Android app
+name: Release
 
-# Builds the public, signed APK for each version tag (v1.2.3) and puts it
-# on a draft GitHub release, with its SHA-256, for the maintainer to look
-# over and publish. The server image is built by image.yml from the same tag.
+# Every version tag (v1.2.3) is a release, and every release is signed:
+#   1. the public APK is built and signed, and its signature is checked
+#      against KTL's release key (android/release-cert.sha256) — an
+#      unsigned APK, or one signed with any other key, stops the release;
+#   2. only then is the server image published (image.yml);
+#   3. the APK and its SHA-256 go on a draft GitHub release, for the
+#      maintainer to look over and publish.
 #
 # Needs four repository secrets (README → Releasing):
 #   KTL_KEYSTORE_BASE64   the release key (.jks), base64-encoded
@@ -79,3 +83,12 @@ jobs:
         with:
           name: ktl-apk
           path: release/
+
+  image:
+    name: Server image
+    needs: apk
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/image.yml
+    permissions:
+      contents: read
+      packages: write

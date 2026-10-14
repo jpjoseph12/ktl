@@ -1,10 +1,11 @@
 name: Server image
 
-# Publishes the server image to the GitHub Container Registry for each
-# version tag (v1.2.3), so people can pull it instead of building it.
+# Publishes the server image to the GitHub Container Registry, so people
+# can pull it instead of building it. A version tag runs it from
+# release.yml, and only once the release's APK is built and signed with
+# KTL's release key — a release never goes out half-done or unsigned.
 on:
-  push:
-    tags: ['v*']
+  workflow_call:
   workflow_dispatch:
 
 permissions:
