@@ -111,9 +111,13 @@ in the app for the owner:
 
 ## The Android app
 
-On first launch the app asks for your server's address, and **House →
-Server** shows it afterwards. On a computer or tablet, just open the
-address in a browser.
+**Download it** from [the latest release](https://github.com/jpjoseph12/ktl/releases/latest)
+(`ktl-<version>.apk`). Check it against the `.sha256` file beside it if
+you like. On first launch the app asks for your server's address — or open
+an invite from whoever runs your server, which fills it in — and **House →
+Server** shows it afterwards. The downloadable app has no push
+notifications (they need a build made with your own Firebase project, see
+below). On a computer or tablet, just open the address in a browser.
 
 To build the app yourself:
 
@@ -126,9 +130,11 @@ npm run android:debug        # → android/app/build/outputs/apk/debug/app-debug
   filled in, put `VITE_SERVER_URL=https://ktl.example.com` in `.env` first.
 - **Your own app ID.** If you publish your own build, change the app ID
   (`com.ktl.app`) in `capacitor.config.json` and `android/app/build.gradle`.
-- **Release builds.** For a signed release (`npm run android:release`),
-  copy `android/keystore.properties.example` to `keystore.properties` and
-  point it at your upload key.
+- **Release builds.** Copy `android/keystore.properties.example` to
+  `keystore.properties` and point it at your key, then
+  `npm run android:apk` (a signed APK in `release/`) or
+  `npm run android:release` (an app bundle for Play). A release build
+  without a key stops rather than producing an unsigned one.
 
 ### Push notifications (optional)
 
@@ -216,6 +222,35 @@ cd selfhost/gateway && npm ci && npm test   # server tests
   start. Add a change as a new file; never edit a released one.
 - **`selfhost/`** is the container: `Dockerfile`, the gateway (Node, in
   `gateway/`), database bootstrap SQL and the s6 service definitions.
+
+## Releasing
+
+For maintainers. A version tag builds and publishes the server image
+(`image.yml`) and builds the signed APK onto a draft GitHub release
+(`release.yml`), which you then look over and publish.
+
+```bash
+npm version minor            # 1.0.0 → 1.1.0: package.json, a commit and the v1.1.0 tag
+git push && git push --tags
+```
+
+The APK workflow needs the release key as four repository secrets. With
+the key at `../ktl-release-key.jks` and its passwords in
+`android/keystore.properties`, add them with the GitHub CLI (run these
+yourself — they read the secrets from your files, never the screen):
+
+```bash
+base64 -w0 ../ktl-release-key.jks | gh secret set KTL_KEYSTORE_BASE64
+grep '^storePassword=' android/keystore.properties | cut -d= -f2- | tr -d '
+' | gh secret set KTL_KEYSTORE_PASSWORD
+grep '^keyAlias=' android/keystore.properties | cut -d= -f2- | tr -d '
+' | gh secret set KTL_KEY_ALIAS
+grep '^keyPassword=' android/keystore.properties | cut -d= -f2- | tr -d '
+' | gh secret set KTL_KEY_PASSWORD
+```
+
+Keep the key and `keystore.properties` backed up together: every update
+has to be signed with the same key.
 
 ## Credits
 

@@ -9,14 +9,25 @@ def appVersion = new JsonSlurper().parse(rootProject.file('../package.json')).ve
 def (vMajor, vMinor, vPatch) = appVersion.tokenize('.').collect { it.replaceAll(/\D.*/, '') as int }
 def appVersionCode = vMajor * 10000 + vMinor * 100 + vPatch
 
-/* The upload key lives outside git: android/keystore.properties (see
-   keystore.properties.example). Without it, release builds are unsigned
-   and `npm run android:release` stops before bundling. */
+/* The release key lives outside git, in one of two places:
+     - android/keystore.properties (see keystore.properties.example), for
+       builds on your own computer;
+     - KTL_KEYSTORE_FILE, KTL_KEYSTORE_PASSWORD, KTL_KEY_ALIAS and
+       KTL_KEY_PASSWORD in the environment, for the GitHub release workflow.
+   A release build without either stops, rather than quietly producing an
+   unsigned APK. */
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
 }
+def envKeystore = System.getenv('KTL_KEYSTORE_FILE')
+def hasReleaseKey = keystorePropertiesFile.exists() || (envKeystore != null && !envKeystore.isEmpty())
+
+/* KTL_PUBLIC_BUILD=1: the APK anyone can download. It leaves out
+   google-services.json even if one is here, so it isn't tied to whoever
+   built it's Firebase project (push needs a build made for a server). */
+def publicBuild = System.getenv('KTL_PUBLIC_BUILD') == '1'
 
 android {
     namespace = "com.ktl.app"
@@ -41,12 +52,17 @@ android {
                 storePassword keystoreProperties['storePassword']
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']
+            } else if (hasReleaseKey) {
+                storeFile file(envKeystore)
+                storePassword System.getenv('KTL_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('KTL_KEY_ALIAS')
+                keyPassword System.getenv('KTL_KEY_PASSWORD')
             }
         }
     }
     buildTypes {
         release {
-            if (keystorePropertiesFile.exists()) {
+            if (hasReleaseKey) {
                 signingConfig signingConfigs.release
             }
             minifyEnabled false
@@ -75,11 +91,22 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
+gradle.taskGraph.whenReady { graph ->
+    def releasing = graph.allTasks.any { (it.name.startsWith('assemble') || it.name.startsWith('bundle')) && it.name.endsWith('Release') }
+    if (releasing && !hasReleaseKey) {
+        throw new GradleException('No release key: add android/keystore.properties or the KTL_KEYSTORE_* environment variables. Refusing to build an unsigned release.')
     }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+
+if (publicBuild) {
+    logger.lifecycle('KTL_PUBLIC_BUILD: leaving out google-services.json (no push in the public APK).')
+} else {
+    try {
+        def servicesJSON = file('google-services.json')
+        if (servicesJSON.text) {
+            apply plugin: 'com.google.gms.google-services'
+        }
+    } catch(Exception e) {
+        logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+    }
 }

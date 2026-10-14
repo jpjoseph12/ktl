@@ -69,3 +69,6 @@ secrets.env
 .agents/
 .mcp.json
 skills-lock.json
+
+# Public APKs built by `npm run android:apk`
+/release/

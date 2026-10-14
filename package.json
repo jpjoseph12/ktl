@@ -14,7 +14,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e": "wdio run wdio.conf.js"
+    "test:e2e": "wdio run wdio.conf.js",
+    "android:apk": "node scripts/release-apk.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "10.0.0",
