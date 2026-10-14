@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Icon from '../../components/Icon';
 import CopyButton from '../../components/CopyButton';
 import { api, apiFetch, SERVER_URL } from '../../lib/api';
+import { saveFile } from '../../lib/saveFile';
 
 /* The server settings on the setup and admin pages. Each card saves on
    its own. A setting the container's environment fixes is shown, but
@@ -286,12 +287,7 @@ export function BackupsCard({ admin }) {
       headers: { Authorization: `Bearer ${s.session?.access_token}` }
     });
     if (!res.ok) throw new Error('That backup couldn’t be downloaded.');
-    const url = URL.createObjectURL(await res.blob());
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    await saveFile(name, await res.blob());
   });
 
   const upload = (e) => {

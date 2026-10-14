@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import ServerSection from './ServerSection';
 import { ScreenProvider } from '../context/ScreenContext';
@@ -8,7 +9,7 @@ const signOut = vi.fn().mockResolvedValue();
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ signOut }) }));
 vi.mock('../lib/api', () => ({ SERVER_URL: 'https://ktl.example.com', IS_NATIVE: false, clearServer: vi.fn() }));
 
-const renderSection = (props) => render(<ScreenProvider><ServerSection {...props} /></ScreenProvider>);
+const renderSection = (props) => render(<MemoryRouter><ScreenProvider><ServerSection {...props} /></ScreenProvider></MemoryRouter>);
 
 describe('ServerSection — which server this is', () => {
   it('shows the address to type into the app on another phone', () => {
@@ -17,9 +18,11 @@ describe('ServerSection — which server this is', () => {
     expect(screen.getByRole('button', { name: /copy the address/i })).toBeInTheDocument();
   });
 
-  it('links the owner, and only the owner, to people and server settings', () => {
+  it('takes the owner, and only the owner, to people and server settings inside the app', () => {
     const { unmount } = renderSection({ isOwner: true });
-    expect(screen.getByRole('link', { name: /people and server settings/i })).toHaveAttribute('href', 'https://ktl.example.com/admin');
+    const link = screen.getByRole('link', { name: /people and server settings/i });
+    expect(link).toHaveAttribute('href', '/admin');
+    expect(link).not.toHaveAttribute('target');
     unmount();
     renderSection({ isOwner: false });
     expect(screen.queryByRole('link', { name: /people and server settings/i })).not.toBeInTheDocument();

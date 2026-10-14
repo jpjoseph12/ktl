@@ -1,11 +1,13 @@
+import { Link } from 'react-router-dom';
 import Icon from './Icon';
 import CopyButton from './CopyButton';
 import { useAuth } from '../context/AuthContext';
 import { clearServer, IS_NATIVE, SERVER_URL } from '../lib/api';
 
 /* House → Server. Which KTL server this is, so it can be typed into the
-   app on another phone, and — for the owner — the way into the admin page
-   where people and settings are managed. */
+   app on another phone, and — for the owner — the way into the admin
+   screens where people and settings are managed. They're part of the app,
+   so they open right here, signed in, with no browser needed. */
 export default function ServerSection({ isOwner = false }) {
   const { signOut } = useAuth();
 
@@ -33,9 +35,9 @@ export default function ServerSection({ isOwner = false }) {
           <Icon name="copy" size={16} />Copy the address
         </CopyButton>
         {isOwner && (
-          <a className="btn btn-secondary btn-sm" href={`${SERVER_URL}/admin`} target={IS_NATIVE ? '_blank' : undefined} rel="noreferrer">
+          <Link className="btn btn-secondary btn-sm" to="/admin">
             <Icon name="settings" size={16} />People and server settings
-          </a>
+          </Link>
         )}
       </div>
       <div className="row" style={{ gap: 'var(--space-2)' }}>

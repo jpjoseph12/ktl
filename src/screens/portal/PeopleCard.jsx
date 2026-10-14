@@ -88,7 +88,9 @@ export default function PeopleCard({ admin }) {
   const add = () => run(async () => {
     if (!validName(name) || !validEmail(email)) throw new Error('Enter their name and a valid email address.');
     const r = await apiFetch('/api/admin/people', { method: 'POST', body: { name: name.trim(), email: email.trim(), expiresIn } });
-    setInvites((l) => ({ ...l, [r.person.id]: r.invite }));
+    // A server from before invites (1.0) hands back a plain one-hour link.
+    if (r.invite) setInvites((l) => ({ ...l, [r.person.id]: r.invite }));
+    else if (r.link) setLinks((l) => ({ ...l, [r.person.id]: r.link }));
     setName('');
     setEmail('');
     await reload();
