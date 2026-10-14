@@ -236,16 +236,13 @@ git push && git push --tags
 
 The APK workflow needs the release key as four repository secrets. With
 the key at `../ktl-release-key.jks` and its passwords in
-`android/keystore.properties`, add them with the GitHub CLI, from the
-repository folder in a bash shell (Git Bash on Windows). They read the
-secrets from your files, so nothing is typed or shown on screen. Replace
-`OWNER/ktl` with your repository:
+`android/keystore.properties`, add them with the GitHub CLI from the
+repository folder, in any terminal. It reads the secrets from your files
+and hands them to `gh` directly, so nothing is typed or shown on screen.
+Replace `OWNER/ktl` with your repository:
 
 ```bash
-base64 -w0 ../ktl-release-key.jks | gh secret set KTL_KEYSTORE_BASE64 --repo OWNER/ktl
-sed -n 's/^storePassword=//p' android/keystore.properties | tr -d '\r\n' | gh secret set KTL_KEYSTORE_PASSWORD --repo OWNER/ktl
-sed -n 's/^keyAlias=//p' android/keystore.properties | tr -d '\r\n' | gh secret set KTL_KEY_ALIAS --repo OWNER/ktl
-sed -n 's/^keyPassword=//p' android/keystore.properties | tr -d '\r\n' | gh secret set KTL_KEY_PASSWORD --repo OWNER/ktl
+node scripts/set-release-secrets.mjs OWNER/ktl
 ```
 
 Keep the key and `keystore.properties` backed up together: every update
