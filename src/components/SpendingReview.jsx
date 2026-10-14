@@ -18,7 +18,9 @@ const fmtDate = (d) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 's
 const MAX_BYTES = 10 * 1024 * 1024;
 
 export default function SpendingReview({ userId, tracked, debtOn, previewMonthsSaved, onModel, onAddBill }) {
-  const [analysis, setAnalysis] = useState(() => (remembered?.userId === userId ? remembered.analysis : null));
+  // Only ever this person's own review: with nothing remembered, or no one
+  // signed in yet, `undefined === undefined` must not count as a match.
+  const [analysis, setAnalysis] = useState(() => (remembered && userId && remembered.userId === userId ? remembered.analysis : null));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(() => new Set());

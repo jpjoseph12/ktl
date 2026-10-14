@@ -38,6 +38,11 @@ async function loadExport(user) {
 describe('SpendingReview', () => {
   afterEach(() => forgetSpending());
 
+  it('opens before anyone is known yet, with nothing remembered — no crash', () => {
+    render(<SpendingReview {...props()} userId={undefined} />);
+    expect(screen.getByText(/never uploaded, not even to KTL’s server/i)).toBeInTheDocument();
+  });
+
   it('promises the export stays on the device before anything is loaded', () => {
     render(<SpendingReview {...props()} />);
     expect(screen.getByText(/never uploaded, not even to KTL’s server/i)).toBeInTheDocument();
