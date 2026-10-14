@@ -38,6 +38,30 @@ async function connectAndSignIn() {
   await $('form button[type="submit"]').click();
 }
 
+/* A brand-new account sees the first-run welcome once, before anything
+   else. Go through it the way a person would, skipping the optional parts.
+   It's recorded on the account, so only the first spec of a run sees it;
+   the rest go straight to Home. */
+async function finishWelcomeIfShown() {
+  const welcome = await $('h1*=Welcome to');
+  const navHome = await $('nav[aria-label="Main"] a[href="/android/home"]');
+  // Whichever comes first once the household has loaded (slow on CI).
+  await browser.waitUntil(async () => (await welcome.isExisting()) || (await navHome.isExisting()), { timeout: 45000, interval: 500 })
+    .catch(() => {});
+  if (!(await welcome.isExisting())) return;
+
+  const name = await $('#welcome-name');
+  if (!(await name.getValue())) await name.setValue('E2E Owner');
+  await $('button=Next').click();
+  await $('h1=Your private space').waitForExist({ timeout: 15000 });
+  await $('button=Skip for now').click();
+  await $('h1*=This').waitForExist({ timeout: 15000 });
+  await $('button=Next').click();
+  const home = await $('button=Go to Home');
+  await home.waitForExist({ timeout: 15000 });
+  await home.click();
+}
+
 export async function waitForWebview(timeout = 20000) {
   await browser.waitUntil(
     async () => {
@@ -50,7 +74,10 @@ export async function waitForWebview(timeout = 20000) {
   const webview = contexts.find((c) => String(c).startsWith(WEBVIEW_PREFIX));
   await browser.switchContext(webview);
 
-  if (!(await $('nav[aria-label="Main"]').isExisting())) await connectAndSignIn();
+  if (!(await $('nav[aria-label="Main"]').isExisting())) {
+    await connectAndSignIn();
+    await finishWelcomeIfShown();
+  }
 
   /* Every spec file gets its own fresh Appium session (see e2e/README.md
      on `noReset: false`), and WalkthroughContext auto-starts its onboarding
