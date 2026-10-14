@@ -6,6 +6,7 @@ import AndroidHousehold from '../android/Household';
 import { useKettle } from '../../context/KettleContext';
 import { useWalkthrough } from '../../context/WalkthroughContext';
 
+vi.mock('../../context/AppLockContext', () => ({ useAppLock: () => ({ on: false, lock: null, turnOn: async () => {}, changePin: async () => {}, turnOff: () => {}, setOption: () => {} }) }));
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ updatePassword: async () => {}, signOut: async () => {} }) }));
 vi.mock('../../context/KettleContext', () => ({
   useKettle: vi.fn()

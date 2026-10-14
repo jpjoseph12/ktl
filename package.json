@@ -17,12 +17,14 @@
     "test:e2e": "wdio run wdio.conf.js"
   },
   "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "10.0.0",
     "@capacitor/android": "^8.5.1",
     "@capacitor/app": "^8.1.1",
     "@capacitor/cli": "^8.5.1",
     "@capacitor/core": "^8.5.1",
     "@capacitor/filesystem": "8.1.3",
     "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/privacy-screen": "2.0.1",
     "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/share": "^8.0.1",
     "@capacitor/status-bar": "^8.0.3",

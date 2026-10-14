@@ -137,7 +137,9 @@ export function KettleProvider({ children }) {
 
     const memberIds = membersRes.data.map((m) => m.user_id);
     const profilesRes = memberIds.length
-      ? await api.from('profiles').select('id, full_name').in('id', memberIds)
+      // '*' rather than named columns: a server from before the first-run
+      // welcome has no onboarded_at, and naming it would fail the load.
+      ? await api.from('profiles').select('*').in('id', memberIds)
       : { data: [] };
     if (profilesRes.error) throw profilesRes.error;
     const profileById = new Map(profilesRes.data.map((p) => [p.id, p]));
@@ -187,7 +189,12 @@ export function KettleProvider({ children }) {
       mode: h.mode,
       since: formatSince(h.created_at)
     });
-    setYou(youProfile ? { id: youId, name: youProfile.full_name, initials: initialsOf(youProfile.full_name) } : { id: youId, name: 'You', initials: '?' });
+    // Been through the first-run welcome? A server without the column
+    // (before 1.1) counts as yes, so it never asks.
+    const firstRunDone = !youProfile || youProfile.onboarded_at === undefined || youProfile.onboarded_at !== null;
+    setYou(youProfile
+      ? { id: youId, name: youProfile.full_name, initials: initialsOf(youProfile.full_name), firstRunDone }
+      : { id: youId, name: 'You', initials: '?', firstRunDone });
     setMembers(sortedMembers);
     setBills(normBills);
     setLending(normLending);
@@ -324,6 +331,22 @@ export function KettleProvider({ children }) {
     if (error) throw error;
     await refresh(householdId, you.id);
   }, [householdId, you, refresh]);
+
+  /* The name everyone in the household sees for you. */
+  const updateMyName = useCallback(async (name) => {
+    const trimmed = String(name || '').trim();
+    if (trimmed.length < 2) throw new Error('Enter the name you’d like your household to see.');
+    const { error: err } = await api.from('profiles').update({ full_name: trimmed }).eq('id', you.id);
+    if (err) throw err;
+    await refresh(householdId, you.id);
+  }, [householdId, you, refresh]);
+
+  /* The first-run welcome is done: it doesn't show again, on any device. */
+  const finishFirstRun = useCallback(async () => {
+    const { error: err } = await api.from('profiles').update({ onboarded_at: new Date().toISOString() }).eq('id', you.id);
+    if (err) throw err;
+    setYou((y) => (y ? { ...y, firstRunDone: true } : y));
+  }, [you]);
 
   const setMode = useCallback(async (m) => {
     if (!householdId) return m;
@@ -960,6 +983,8 @@ export function KettleProvider({ children }) {
     mode,
     setMode,
     renameHousehold,
+    updateMyName,
+    finishFirstRun,
     tracking,
     closedStatus,
     owedBreakdown,
@@ -983,7 +1008,7 @@ export function KettleProvider({ children }) {
     snoozeItem,
     refreshNow,
     openCount
-  }), [loading, error, dataShape, you, partner, members, others, statusOf, setStatus, setFlag, flag, detailsIn, labelOf, find, all, balance, balances, cycleTotals, mode, setMode, renameHousehold, tracking, closedStatus, owedBreakdown, settleAll, settleWith, addBill, updateBill, removeBill, addLending, updateLending, removeLending, recordPayment, recordBillAmount, endBill, reopenBill, memberExitSummary, removeMember, deleteAccount, updateReminders, needsYou, snoozeItem, refreshNow, openCount]);
+  }), [loading, error, dataShape, you, partner, members, others, statusOf, setStatus, setFlag, flag, detailsIn, labelOf, find, all, balance, balances, cycleTotals, mode, setMode, renameHousehold, updateMyName, finishFirstRun, tracking, closedStatus, owedBreakdown, settleAll, settleWith, addBill, updateBill, removeBill, addLending, updateLending, removeLending, recordPayment, recordBillAmount, endBill, reopenBill, memberExitSummary, removeMember, deleteAccount, updateReminders, needsYou, snoozeItem, refreshNow, openCount]);
 
   return <KettleCtx.Provider value={value}>{children}</KettleCtx.Provider>;
 }

@@ -1,0 +1,32 @@
+/* The app lock (React only — not in the prototype). Built from the same
+   tokens as the splash screens. */
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  background: var(--bg);
+  padding: calc(var(--space-6) + env(safe-area-inset-top)) var(--space-5) calc(var(--space-6) + env(safe-area-inset-bottom));
+}
+.lock-inner { width: 100%; max-width: 340px; display: flex; flex-direction: column; align-items: center; gap: var(--space-4); text-align: center; }
+.lock-dots { display: flex; gap: var(--space-3); margin-top: var(--space-2); }
+.lock-dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--fg-2); }
+.lock-dot.on { background: var(--fg); border-color: var(--fg); }
+.lock-message { min-height: 1.4em; font-size: var(--text-sm); color: var(--danger); margin: 0; }
+.lock-pad { display: grid; grid-template-columns: repeat(3, 72px); gap: var(--space-3); justify-content: center; }
+.lock-pad > span { width: 72px; height: 72px; }
+.lock-key {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  color: var(--fg);
+  display: grid; place-items: center;
+}
+.lock-key:active { background: var(--surface-warm); }
+.lock-key.ghost { border-color: transparent; background: transparent; color: var(--fg-2); }

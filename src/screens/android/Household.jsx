@@ -9,6 +9,7 @@ import CopyButton from '../../components/CopyButton';
 import Bell from '../../components/Bell';
 import ChangePassword from '../../components/ChangePassword';
 import ServerSection from '../../components/ServerSection';
+import SecuritySection from '../../components/LockSettings';
 import { useKettle } from '../../context/KettleContext';
 import { useScreen } from '../../context/ScreenContext';
 import { useWalkthrough } from '../../context/WalkthroughContext';
@@ -98,6 +99,7 @@ const CATEGORIES = [
   { id: 'money', icon: 'coins', label: 'Money' },
   { id: 'help', icon: 'refresh', label: 'Help' },
   { id: 'server', icon: 'signal', label: 'Server' },
+  { id: 'security', icon: 'shield', label: 'App lock' },
   { id: 'password', icon: 'lock', label: 'Password' },
   { id: 'deleteAccount', icon: 'alert', label: 'Delete your account' }
 ];
@@ -386,6 +388,7 @@ function HouseholdBody({ tablet = false }) {
         </section>
     ),
     server: <ServerSection isOwner={you && memberList.find((m) => m.id === you.id)?.role === 'owner'} />,
+    security: <SecuritySection />,
     password: (
         <section className="stack">
           <div className="section-head"><h2>Password</h2></div>

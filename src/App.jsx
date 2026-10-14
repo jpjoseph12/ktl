@@ -4,6 +4,7 @@ import { App as CapApp } from '@capacitor/app';
 import { Style, StatusBar } from '@capacitor/status-bar';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AppLockProvider } from './context/AppLockContext';
 import { KettleProvider, useKettle } from './context/KettleContext';
 import { PrivateProvider, usePrivate } from './context/PrivateContext';
 import { WalkthroughProvider } from './context/WalkthroughContext';
@@ -190,13 +191,15 @@ export default function App() {
   if (!hasServer()) return <Connect />;
   return (
     <AuthProvider>
-      <KettleProvider>
-        <PrivateProvider>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </PrivateProvider>
-      </KettleProvider>
+      <AppLockProvider>
+        <KettleProvider>
+          <PrivateProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </PrivateProvider>
+        </KettleProvider>
+      </AppLockProvider>
     </AuthProvider>
   );
 }
