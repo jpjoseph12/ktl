@@ -14,6 +14,7 @@ import AndroidOnboarding, { SetPasswordScreen } from './screens/android/Onboardi
 import { hasServer, SERVER_URL } from './lib/api';
 import Connect from './screens/Connect';
 import Join, { InviteSwitch } from './screens/Join';
+import Welcome from './screens/Welcome';
 import { clearPendingInvite, inviteDone, parseInvite, readPendingInvite, sameServer, savePendingInvite } from './lib/invite';
 import Setup from './screens/Setup';
 import Admin from './screens/Admin';
@@ -81,9 +82,12 @@ function RedirectIfSignedIn({ children }) {
    after sign-in — hold the screen until it settles so nothing renders
    against a still-empty `you`/`data`. */
 function WaitForHousehold({ children }) {
-  const { loading, error } = useKettle();
+  const { loading, error, you } = useKettle();
+  const location = useLocation();
   if (loading) return <LoadingScreen label="Loading your household" />;
   if (error) return <BootErrorScreen error={error} />;
+  // The first time in, the welcome comes before anything else.
+  if (you && you.firstRunDone === false && location.pathname !== '/welcome') return <Navigate to="/welcome" replace />;
   return children;
 }
 
@@ -134,6 +138,7 @@ function AppRoutes() {
         <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
         <Route path="/admin/:section" element={<RequireAuth><Admin /></RequireAuth>} />
         <Route path="/android/onboarding" element={<RedirectIfSignedIn><AndroidOnboarding /></RedirectIfSignedIn>} />
+        <Route path="/welcome" element={protectedRoute(<Welcome />, { needsPrivate: true })} />
         <Route path="/android/home" element={protectedRoute(<AndroidHome />)} />
         <Route path="/android/bills" element={protectedRoute(<AndroidBills />)} />
         <Route path="/android/settle" element={protectedRoute(<AndroidSettle />)} />

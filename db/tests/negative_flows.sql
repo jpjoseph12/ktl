@@ -215,6 +215,44 @@ begin
   insert into test_results (id, status, detail) values ('T10', 'PASS', 'no join-by-code or create-household functions remain');
 end $$;
 
+-- T11: the first-run welcome. A new account hasn't been through it; you
+-- can mark yourself done, but not someone else.
+do $$
+declare done_at timestamptz;
+begin
+  select onboarded_at into done_at from public.profiles where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
+  if done_at is not null then raise exception 'FAIL T11: a new account starts as already welcomed'; end if;
+end $$;
+set local "request.jwt.claim.sub" to 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
+set local role authenticated;
+update public.profiles set onboarded_at = now() where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
+update public.profiles set onboarded_at = now() where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
+reset role;
+do $$
+declare mine timestamptz; theirs timestamptz;
+begin
+  select onboarded_at into mine from public.profiles where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
+  select onboarded_at into theirs from public.profiles where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
+  if mine is null then raise exception 'FAIL T11: B couldn''t mark their own welcome done'; end if;
+  if theirs is not null then raise exception 'FAIL T11: B marked A''s welcome done'; end if;
+  insert into test_results (id, status, detail) values ('T11', 'PASS', 'you can finish your own welcome, not someone else''s');
+end $$;
+
+-- T12: invites are the server's alone — the app can't read or write them.
+set local "request.jwt.claim.sub" to 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
+set local role authenticated;
+do $$
+begin
+  begin
+    perform 1 from ktl_meta.invites limit 1;
+    raise exception 'FAIL T12: the app can read invites';
+  exception
+    when insufficient_privilege then
+      insert into test_results (id, status, detail) values ('T12', 'PASS', 'invites are hidden from the app');
+  end;
+end $$;
+reset role;
+
 select id, status, detail from test_results order by seq;
 
 rollback;
