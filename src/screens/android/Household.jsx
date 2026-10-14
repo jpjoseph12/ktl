@@ -11,6 +11,7 @@ import ChangePassword from '../../components/ChangePassword';
 import ServerSection from '../../components/ServerSection';
 import { quietHoursOn } from '../../lib/reminders';
 import SecuritySection from '../../components/LockSettings';
+import YourDataSection from '../../components/YourDataSection';
 import { useKettle } from '../../context/KettleContext';
 import { useScreen } from '../../context/ScreenContext';
 import { useWalkthrough } from '../../context/WalkthroughContext';
@@ -114,6 +115,7 @@ const CATEGORIES = [
   { id: 'server', icon: 'signal', label: 'Server' },
   { id: 'security', icon: 'shield', label: 'App lock' },
   { id: 'password', icon: 'lock', label: 'Password' },
+  { id: 'yourData', icon: 'arrow-down', label: 'Your data' },
   { id: 'deleteAccount', icon: 'alert', label: 'Delete your account' }
 ];
 
@@ -426,6 +428,7 @@ function HouseholdBody({ tablet = false }) {
     ),
     server: <ServerSection isOwner={you && memberList.find((m) => m.id === you.id)?.role === 'owner'} />,
     security: <SecuritySection />,
+    yourData: <YourDataSection />,
     password: (
         <section className="stack">
           <div className="section-head"><h2>Password</h2></div>
