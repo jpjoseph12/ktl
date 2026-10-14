@@ -39,6 +39,16 @@
                 <data android:scheme="ktl" android:host="auth" />
             </intent-filter>
 
+            <!-- Invites: the /join page's "Open in the KTL app" button opens
+                 ktl://join?server=…#<invite>, which fills in the server and
+                 goes straight to choosing a password. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ktl" android:host="join" />
+            </intent-filter>
+
         </activity>
 
         <provider

@@ -4,6 +4,7 @@ import PhoneShell from '../components/PhoneShell';
 import { TabletCenteredShell } from '../components/tablet/TabletShell';
 import useIsTablet, { CENTERED_QUERY } from '../lib/useIsTablet';
 import { fetchServerInfo, normaliseServerUrl, setServer } from '../lib/api';
+import { parseInvite, savePendingInvite } from '../lib/invite';
 
 /* The Android app's first screen: which KTL server to use. KTL is
    self-hosted, so the app can't know where yours lives until you say.
@@ -24,8 +25,15 @@ function ConnectBody({ onConnected }) {
     setError('');
     setBusy(true);
     try {
-      const info = await fetchServerInfo(address);
+      // A pasted invite (the link, or the whole message) brings its server.
+      const invite = parseInvite(address);
+      const info = await fetchServerInfo(invite ? invite.server : address);
       setServer(info.url);
+      if (invite) {
+        savePendingInvite({ server: info.url, token: invite.token });
+        window.location.replace('/join');
+        return;
+      }
       onConnected(info);
     } catch (err) {
       setError(err.message);
@@ -51,10 +59,10 @@ function ConnectBody({ onConnected }) {
               autoComplete="url" autoCapitalize="off" spellCheck="false"
               value={address} onChange={(e) => setAddress(e.target.value)}
             />
-            <span className="field-help">Whoever set up your server can tell you this. It’s the address you open KTL at in a browser.</span>
+            <span className="field-help">Whoever set up your server can tell you this. It’s the address you open KTL at in a browser. Got an invite? Paste it here.</span>
           </div>
           {error && <p className="hint"><Icon name="alert" size={16} /><span>{error}</span></p>}
-          <button type="submit" className="btn btn-primary btn-block" disabled={busy || !normaliseServerUrl(address)}>
+          <button type="submit" className="btn btn-primary btn-block" disabled={busy || !(normaliseServerUrl(address) || parseInvite(address))}>
             {busy ? 'Checking…' : 'Connect'}
           </button>
         </form>

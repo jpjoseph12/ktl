@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import { Style, StatusBar } from '@capacitor/status-bar';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { KettleProvider, useKettle } from './context/KettleContext';
 import { PrivateProvider, usePrivate } from './context/PrivateContext';
@@ -11,6 +12,8 @@ import LoadingScreen from './components/LoadingScreen';
 import AndroidOnboarding, { SetPasswordScreen } from './screens/android/Onboarding';
 import { hasServer, SERVER_URL } from './lib/api';
 import Connect from './screens/Connect';
+import Join, { InviteSwitch } from './screens/Join';
+import { clearPendingInvite, inviteDone, parseInvite, readPendingInvite, sameServer, savePendingInvite } from './lib/invite';
 import Setup from './screens/Setup';
 import Admin from './screens/Admin';
 import AndroidHome from './screens/android/Home';
@@ -105,6 +108,18 @@ function protectedRoute(element, { needsPrivate } = {}) {
   );
 }
 
+/* An invite waiting to be used (from a ktl://join link or a pasted
+   invite) takes the app to /join wherever it was headed. */
+function PendingInviteRedirect() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const invite = readPendingInvite();
+    if (invite && sameServer(invite.server, SERVER_URL) && location.pathname !== '/join') navigate('/join', { replace: true });
+  }, [location.pathname, navigate]);
+  return null;
+}
+
 function AppRoutes() {
   const { user, recovering } = useAuth();
   // A reset link has just signed this person in: get a password first.
@@ -114,6 +129,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Navigate to="/android/onboarding" replace />} />
         <Route path="/setup" element={<Setup />} />
+        <Route path="/join" element={<Join />} />
         <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
         <Route path="/admin/:section" element={<RequireAuth><Admin /></RequireAuth>} />
         <Route path="/android/onboarding" element={<RedirectIfSignedIn><AndroidOnboarding /></RedirectIfSignedIn>} />
@@ -125,6 +141,7 @@ function AppRoutes() {
         <Route path="/android/yours" element={protectedRoute(<AndroidYours />, { needsPrivate: true })} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <PendingInviteRedirect />
       <WalkthroughOverlay />
     </WalkthroughProvider>
   );
@@ -140,8 +157,34 @@ function useNativeStatusBar() {
   }, []);
 }
 
+/* Native: an invite opened from a message arrives as ktl://join?…, even
+   on a phone that hasn't picked a server yet. Kept until it's used. */
+function useInvite() {
+  const [invite, setInvite] = useState(readPendingInvite);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+    const take = (url) => {
+      if (!url || !url.startsWith('ktl://join')) return;
+      const found = parseInvite(url);
+      if (!found || inviteDone(found.token)) return;
+      savePendingInvite(found);
+      setInvite(found);
+    };
+    CapApp.getLaunchUrl().then((r) => take(r?.url)).catch(() => {});
+    const listener = CapApp.addListener('appUrlOpen', ({ url }) => take(url));
+    return () => { listener.then((l) => l.remove()); };
+  }, []);
+  return [invite, setInvite];
+}
+
 export default function App() {
   useNativeStatusBar();
+  const [invite, setInvite] = useInvite();
+  // An invite for another server (or before any server is chosen): say
+  // where it leads, then switch to it.
+  if (invite && !sameServer(invite.server, SERVER_URL)) {
+    return <InviteSwitch invite={invite} onCancel={() => { clearPendingInvite(); setInvite(null); }} />;
+  }
   // The Android app has to be told which server to use before anything
   // else can run; the web app always uses the server that served it.
   if (!hasServer()) return <Connect />;
