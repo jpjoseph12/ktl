@@ -64,12 +64,15 @@ if (!signer) {
 const check = spawnSync(process.platform === 'win32' ? `"${signer}"` : signer, ['verify', '--print-certs', `"${built}"`], {
   encoding: 'utf8', shell: true
 });
-const fingerprint = /Signer #1 certificate SHA-256 digest:\s*([0-9a-f]{64})/i.exec(check.stdout || '')?.[1]?.toLowerCase();
+// Every signer apksigner reports ("Signer #1 …" in older build-tools,
+// "V2 Signer: …" in newer ones) must be KTL's release key.
+const fingerprints = [...(check.stdout || '').matchAll(/certificate SHA-256 digest:\s*([0-9a-f]{64})/gi)].map((m) => m[1].toLowerCase());
 const pinned = fs.readFileSync(path.join(root, 'android', 'release-cert.sha256'), 'utf8').trim().toLowerCase();
-if (check.status !== 0 || !fingerprint) {
+if (check.status !== 0 || !fingerprints.length) {
   console.error(`The APK isn’t properly signed:\n${(check.stdout || '') + (check.stderr || '')}`);
   process.exit(1);
 }
+const fingerprint = fingerprints.find((f) => f !== pinned) || pinned;
 if (fingerprint !== pinned) {
   console.error(`The APK is signed with the wrong key.\n  signed with: ${fingerprint}\n  KTL’s key:   ${pinned}\nPhones with KTL installed couldn’t update to it. Use the release key in android/keystore.properties (or the KTL_KEYSTORE_* secrets).`);
   process.exit(1);
