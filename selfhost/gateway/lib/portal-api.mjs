@@ -119,7 +119,9 @@ export async function serverHouseholdId(db = getPool()) {
 export async function serverInfo() {
   let ready = false;
   try { ready = Boolean(await serverHouseholdId()); } catch { /* database still starting */ }
-  return { app: 'ktl', version: appVersion(), ready, email: config.emailEnabled, signup: config.allowSignup };
+  // push: whether this server can send push, so the app only asks for
+  // notification permission and registers when it's worth it.
+  return { app: 'ktl', version: appVersion(), ready, email: config.emailEnabled, signup: config.allowSignup, push: pushStatus().configured };
 }
 
 /* Everything tied to an account, then the account itself. Refuses while

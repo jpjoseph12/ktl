@@ -199,6 +199,7 @@ describe('setup and admin', () => {
     assert.equal(info.version, '1.2.3');
     assert.equal(info.ready, false);
     assert.equal(info.signup, false);
+    assert.equal(info.push, false); // no Firebase key uploaded: the app won't ask for push
   });
 
   it('refuses sign-ups while they are closed, without bothering the sign-in service', async () => {

@@ -58,6 +58,17 @@ jobs:
           fi
           echo "$KTL_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/ktl-release-key.jks"
 
+      - name: Firebase project for push (optional)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "This release can receive push."
+          else
+            echo "No GOOGLE_SERVICES_JSON secret: this release has no push."
+          fi
+
       - name: Build the public APK
         env:
           KTL_KEYSTORE_FILE: ${{ runner.temp }}/ktl-release-key.jks

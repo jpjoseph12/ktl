@@ -14,7 +14,7 @@
  * household notifications.
  */
 import { Capacitor } from '@capacitor/core';
-import { api } from './api';
+import { api, fetchServerInfo } from './api';
 
 let listenersBound = false;
 let currentToken = null;
@@ -51,6 +51,13 @@ async function saveToken(userId, token) {
 export async function registerForPush(userId) {
   const PushNotifications = (await plugin())?.PushNotifications;
   if (!PushNotifications || !userId) return { ok: false, reason: 'unavailable' };
+
+  /* The app can be built with a Firebase project, but only a server given
+     that project's key can send through it. A server that says it has no
+     push gets no permission prompt and no token. (One from before 1.2
+     doesn't say either way, so the app registers as it always did.) */
+  const info = await fetchServerInfo().catch(() => null);
+  if (info && info.push === false) return { ok: false, reason: 'server-has-no-push' };
 
   try {
     let perm = await PushNotifications.checkPermissions();

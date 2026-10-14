@@ -115,9 +115,10 @@ in the app for the owner:
 (`ktl-<version>.apk`). Check it against the `.sha256` file beside it if
 you like. On first launch the app asks for your server's address — or open
 an invite from whoever runs your server, which fills it in — and **House →
-Server** shows it afterwards. The downloadable app has no push
-notifications (they need a build made with your own Firebase project, see
-below). On a computer or tablet, just open the address in a browser.
+Server** shows it afterwards. The downloadable app is built with the
+maintainer's Firebase project, so it gets push from servers that hold that
+project's key; other servers simply don't send push (see below). On a
+computer or tablet, just open the address in a browser.
 
 To build the app yourself:
 
@@ -140,15 +141,29 @@ npm run android:debug        # → android/app/build/outputs/apk/debug/app-debug
 
 Without push, KTL still updates live while it's open, and bill reminders
 still come from the phone itself. Push tells people's phones when someone
-else does something, even with the app closed. It needs your own
-[Firebase](https://console.firebase.google.com) project:
+else does something, even with the app closed. Firebase Cloud Messaging is
+free.
 
-1. Add an Android app to the project with your app ID, then download its
-   `google-services.json` into `android/app/`. Then build the app as above.
-   A build without that file simply doesn't use push.
+Push needs the app and the server to share a
+[Firebase](https://console.firebase.google.com) project: the app is built
+with the project's `google-services.json` (its app config — not a
+secret, it's inside every APK), and the server holds the project's
+**service-account key** (a secret — it never leaves your server). The app
+only asks for notification permission when its server says push is set up.
+
+To use push with your own server:
+
+1. In your Firebase project, add an Android app with your app ID and
+   download its `google-services.json` into `android/app/`. Build the app
+   as above (or, for releases, `node scripts/set-release-secrets.mjs` adds
+   it as the `GOOGLE_SERVICES_JSON` secret). A build without it has no push.
 2. In Firebase, go to **Project settings → Service accounts → Generate new
-   private key**. Upload that file on the admin page, under Push
+   private key**, and upload that file on the admin page under Push
    notifications.
+3. In Google Cloud Console → **APIs & Services → Credentials**, restrict the
+   project's API key to Android apps with your app ID and release-key
+   fingerprint, and to the Firebase Cloud Messaging and Firebase
+   Installations APIs, and leave the project's other Firebase products off.
 
 ## Reaching it from outside your network
 

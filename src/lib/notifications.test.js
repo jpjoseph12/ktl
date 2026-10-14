@@ -36,7 +36,11 @@ vi.mock('@capacitor/push-notifications', () => ({
   })
 }));
 
-vi.mock('./api', () => ({ api: { from: () => ({ upsert: async () => ({}), delete: () => ({ eq: async () => ({}) }) }) } }));
+const fetchServerInfo = vi.fn(async () => ({ app: 'ktl', push: true }));
+vi.mock('./api', () => ({
+  api: { from: () => ({ upsert: async () => ({}), delete: () => ({ eq: async () => ({}) }) }) },
+  fetchServerInfo: (...args) => fetchServerInfo(...args)
+}));
 
 const { permissionState, requestPermission, syncReminders, notificationsAvailable } = await import('./notifications');
 const { registerForPush } = await import('./push');
@@ -56,6 +60,20 @@ describe('native plugins reached through a lazy import', () => {
 
   it('registers for push when the build has a Firebase project', async () => {
     vi.stubEnv('VITE_KTL_PUSH', 'true');
+    await expect(registerForPush('user-1')).resolves.toEqual({ ok: true });
+    vi.unstubAllEnvs();
+  });
+
+  it('doesn’t ask for permission or register when the server has no push set up', async () => {
+    vi.stubEnv('VITE_KTL_PUSH', 'true');
+    fetchServerInfo.mockResolvedValueOnce({ app: 'ktl', push: false });
+    await expect(registerForPush('user-1')).resolves.toEqual({ ok: false, reason: 'server-has-no-push' });
+    vi.unstubAllEnvs();
+  });
+
+  it('registers as before with a server from before 1.2, which doesn’t say', async () => {
+    vi.stubEnv('VITE_KTL_PUSH', 'true');
+    fetchServerInfo.mockResolvedValueOnce({ app: 'ktl' });
     await expect(registerForPush('user-1')).resolves.toEqual({ ok: true });
     vi.unstubAllEnvs();
   });

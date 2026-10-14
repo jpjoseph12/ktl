@@ -24,10 +24,10 @@ if (keystorePropertiesFile.exists()) {
 def envKeystore = System.getenv('KTL_KEYSTORE_FILE')
 def hasReleaseKey = keystorePropertiesFile.exists() || (envKeystore != null && !envKeystore.isEmpty())
 
-/* KTL_PUBLIC_BUILD=1: the APK anyone can download. It leaves out
-   google-services.json even if one is here, so it isn't tied to whoever
-   built it's Firebase project (push needs a build made for a server). */
-def publicBuild = System.getenv('KTL_PUBLIC_BUILD') == '1'
+/* Push: a build with android/app/google-services.json (a Firebase
+   project's app config — not a secret; the release workflow writes it from
+   the GOOGLE_SERVICES_JSON secret) can receive push from servers that hold
+   that project's service-account key. Without the file, no push. */
 
 android {
     namespace = "com.ktl.app"
@@ -98,15 +98,12 @@ gradle.taskGraph.whenReady { graph ->
     }
 }
 
-if (publicBuild) {
-    logger.lifecycle('KTL_PUBLIC_BUILD: leaving out google-services.json (no push in the public APK).')
-} else {
-    try {
-        def servicesJSON = file('google-services.json')
-        if (servicesJSON.text) {
-            apply plugin: 'com.google.gms.google-services'
-        }
-    } catch(Exception e) {
-        logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+        logger.lifecycle('google-services.json found: this build can receive push.')
     }
+} catch(Exception e) {
+    logger.lifecycle("No google-services.json: this build has no push.")
 }

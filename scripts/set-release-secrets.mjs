@@ -49,6 +49,12 @@ const secrets = [
   ['KTL_KEY_ALIAS', props.keyAlias],
   ['KTL_KEY_PASSWORD', props.keyPassword]
 ];
+/* Push in releases: the Firebase project's app config, if this copy has
+   one. (Not a secret — it's inside every APK — but kept out of the code so
+   copies of KTL aren't tied to this project.) */
+const servicesFile = path.join(root, 'android', 'app', 'google-services.json');
+if (fs.existsSync(servicesFile)) secrets.push(['GOOGLE_SERVICES_JSON', fs.readFileSync(servicesFile, 'utf8')]);
+else console.log('No android/app/google-services.json — releases will have no push.');
 
 let failed = false;
 for (const [name, value] of secrets) {
@@ -68,4 +74,4 @@ if (failed) {
   console.error('\nSome secrets weren’t set. Check `gh auth status`, and that you can change settings on that repository.');
   process.exit(1);
 }
-console.log(`\nAll four are set on ${repo}. Check with: gh secret list --repo ${repo}`);
+console.log(`\nAll ${secrets.length} are set on ${repo}. Check with: gh secret list --repo ${repo}`);

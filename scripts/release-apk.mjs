@@ -5,10 +5,11 @@
  *
  * It's a release build (not debuggable), signed with the release key
  * (android/keystore.properties, or the KTL_KEYSTORE_* environment
- * variables in CI), with no server address baked in (the app asks), and
- * no Firebase project (KTL_PUBLIC_BUILD=1 — push needs a build made for a
- * particular server). The result is release/ktl-<version>.apk, with a
- * .sha256 beside it for people to check their download against.
+ * variables in CI), with no server address baked in (the app asks). With
+ * android/app/google-services.json present it can receive push, from
+ * servers holding that Firebase project's key. The result is
+ * release/ktl-<version>.apk, with a .sha256 beside it for people to check
+ * their download against.
  */
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -18,7 +19,10 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { version } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-const env = { ...process.env, KTL_PUBLIC_BUILD: '1', VITE_SERVER_URL: '' };
+const env = { ...process.env, VITE_SERVER_URL: '' };
+console.log(fs.existsSync(path.join(root, 'android', 'app', 'google-services.json'))
+  ? 'With google-services.json: this release can receive push.'
+  : 'No google-services.json: this release has no push.');
 
 function run(cmd, args) {
   console.log(`\n> ${cmd} ${args.join(' ')}`);
