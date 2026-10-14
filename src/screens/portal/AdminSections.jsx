@@ -34,6 +34,20 @@ export function OverviewSection({ data }) {
 
   return (
     <>
+      {data.update?.newer && (
+        <section className="card stack-sm" aria-label="Update available">
+          <div className="row-between">
+            <span className="item-title">KTL {data.update.latest} is out</span>
+            <span className="pill is-due">Update</span>
+          </div>
+          <p className="body-sm">
+            This server runs {data.update.current}. To update: on Unraid, <strong>Docker → ktl → Update</strong>; with Docker,
+            {' '}<code>docker pull ghcr.io/jpjoseph12/ktl:latest</code> and recreate the container. Your data stays, and a backup is taken
+            nightly — or take one first under Backups.
+          </p>
+          {data.update.url && <a className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }} href={data.update.url} target="_blank" rel="noreferrer">What’s new</a>}
+        </section>
+      )}
       <section className="stack">
         <div className="section-head"><h2>Server</h2><Pill ok={data.health?.healthy}>{data.health?.healthy ? 'All working' : 'Needs a look'}</Pill></div>
         <div className="card stack-sm">
@@ -46,7 +60,7 @@ export function OverviewSection({ data }) {
             <div className="row-between"><dt className="meta">Address</dt><dd className="body-sm num" style={{ margin: 0, wordBreak: 'break-all' }}>{data.siteUrl}</dd></div>
             <div className="row-between"><dt className="meta">People</dt><dd className="body-sm" style={{ margin: 0 }}>{inHousehold.length} of {data.maxPeople}</dd></div>
             <div className="row-between"><dt className="meta">Latest backup</dt><dd className="body-sm" style={{ margin: 0 }}>{latest?.mtime ? new Date(latest.mtime).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'None yet'}</dd></div>
-            <div className="row-between"><dt className="meta">Version</dt><dd className="body-sm num" style={{ margin: 0 }}>KTL {data.version || '—'}</dd></div>
+            <div className="row-between"><dt className="meta">Version</dt><dd className="body-sm num" style={{ margin: 0 }}>KTL {data.version || '—'}{data.update && !data.update.newer ? ' · up to date' : ''}</dd></div>
           </dl>
           {!data.health?.healthy && (
             <p className="hint"><Icon name="alert" size={16} /><span>Part of the server isn’t answering. Its log has the details: <code>docker logs ktl</code>. Restarting the container usually clears it.</span></p>

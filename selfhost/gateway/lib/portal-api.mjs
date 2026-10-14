@@ -11,6 +11,7 @@ import { probeHealth } from './health.mjs';
 import { createInvite, findInvite, inviteMessage, inviteState, openInvites, tokenFrom, DEFAULT_TTL } from './invites.mjs';
 import { parseServiceAccount, pushStatus } from './push.mjs';
 import { requestRestart, restoreBackup } from './restore.mjs';
+import { updateStatus } from './updates.mjs';
 
 /* KTL's own API, behind the web setup and admin pages:
  *
@@ -152,7 +153,7 @@ async function requireOwner(req) {
 
 async function overview(hid) {
   const db = getPool();
-  const [{ rows: [household] }, { rows: [reminders] }, { rows: people }, invites, health] = await Promise.all([
+  const [{ rows: [household] }, { rows: [reminders] }, { rows: people }, invites, health, update] = await Promise.all([
     db.query('select id, name, mode, payout_ref as "payoutRef" from public.households where id = $1', [hid]),
     db.query(
       `select details_lead as "detailsLead", to_char(details_time, 'HH24:MI') as "detailsTime",
@@ -173,7 +174,8 @@ async function overview(hid) {
       [hid]
     ),
     openInvites(db).catch(() => ({})),
-    probeHealth()
+    probeHealth(),
+    updateStatus(appVersion()).catch(() => null)
   ]);
   const backups = listBackups().map((b) => ({ name: b.name, size: b.size, mtime: b.mtime }));
   return {
@@ -186,6 +188,7 @@ async function overview(hid) {
     schedule: { hour: config.backupHour, keep: config.backupKeep, timezone: config.timezone },
     push: pushStatus(),
     health,
+    update,
     backups
   };
 }

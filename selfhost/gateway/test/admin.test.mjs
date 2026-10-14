@@ -162,3 +162,32 @@ describe('restore', () => {
     assert.match(clear, /create schema public/);
   });
 });
+
+describe('update check', async () => {
+  const { compareVersions, latestRelease, resetUpdateCache, updateStatus } = await import('../lib/updates.mjs');
+  const release = (tag) => async () => ({ ok: true, json: async () => ({ tag_name: tag, html_url: `https://github.com/x/ktl/releases/tag/${tag}`, published_at: '2026-10-20T00:00:00Z' }) });
+
+  it('compares versions as numbers, not text', () => {
+    assert.equal(compareVersions('1.10.0', '1.9.3'), 1);
+    assert.equal(compareVersions('v1.1.0', '1.1.0'), 0);
+    assert.equal(compareVersions('1.0.9', '1.1.0'), -1);
+  });
+
+  it('says when a newer release is out, and asks GitHub at most every six hours', async () => {
+    resetUpdateCache();
+    let asked = 0;
+    const fetchImpl = async (...args) => { asked++; return release('v1.2.0')(...args); };
+    const now = Date.now();
+    const s = await updateStatus('1.1.0', { env: {}, fetchImpl, now });
+    assert.deepEqual({ latest: s.latest, newer: s.newer }, { latest: '1.2.0', newer: true });
+    await latestRelease({ env: {}, fetchImpl, now: now + 60_000 });
+    assert.equal(asked, 1);
+  });
+
+  it('can be turned off, and says nothing when GitHub can’t be reached', async () => {
+    resetUpdateCache();
+    assert.equal(await updateStatus('1.1.0', { env: { KTL_UPDATE_CHECK: 'false' }, fetchImpl: release('v9.9.9') }), null);
+    resetUpdateCache();
+    assert.equal(await updateStatus('1.1.0', { env: {}, fetchImpl: async () => { throw new Error('offline'); } }), null);
+  });
+});

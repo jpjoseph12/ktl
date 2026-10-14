@@ -151,3 +151,17 @@ describe('Admin — Backups', () => {
     expect(await screen.findByText(/Your data from before is saved as ktl-2026-10-14-before-restore.dump/)).toBeInTheDocument();
   });
 });
+
+describe('Admin — update notice', () => {
+  it('says when a newer KTL is out, and how to update', () => {
+    wrap(<OverviewSection data={overview({ update: { current: '1.1.0', latest: '1.2.0', newer: true, url: 'https://github.com/jpjoseph12/ktl/releases/tag/v1.2.0' } })} />);
+    expect(screen.getByText('KTL 1.2.0 is out')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'What’s new' })).toHaveAttribute('href', 'https://github.com/jpjoseph12/ktl/releases/tag/v1.2.0');
+  });
+
+  it('says it’s up to date otherwise', () => {
+    wrap(<OverviewSection data={overview({ update: { current: '1.1.0', latest: '1.1.0', newer: false } })} />);
+    expect(screen.queryByText(/is out/)).not.toBeInTheDocument();
+    expect(screen.getByText(/up to date/)).toBeInTheDocument();
+  });
+});

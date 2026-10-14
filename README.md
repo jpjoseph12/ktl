@@ -202,6 +202,7 @@ it as "set by the container".
 | `KTL_TRUST_PROXY` | `true` behind a reverse proxy on another machine. |
 | `KTL_BACKUP_KEEP`, `KTL_BACKUP_HOUR` | Nightly backups to keep (14) and the hour to take them (3). |
 | `TZ` | Time zone, used for the backup time. Defaults to `Europe/London`. |
+| `KTL_UPDATE_CHECK` | `false` stops the server checking GitHub for a newer KTL (shown on the admin page). It's the only outside call the server makes on its own. |
 
 ## Development
 
