@@ -332,6 +332,16 @@ export function KettleProvider({ children }) {
     await refresh(householdId, you.id);
   }, [householdId, you, refresh]);
 
+  /* The reference everyone adds to transfers between you, so payments are
+     findable in a bank statement later. Empty clears it. */
+  const setPayoutRef = useCallback(async (ref) => {
+    if (!householdId) return;
+    const trimmed = String(ref || '').trim().slice(0, 18);
+    const { error: err } = await api.from('households').update({ payout_ref: trimmed || null }).eq('id', householdId);
+    if (err) throw err;
+    await refresh(householdId, you.id);
+  }, [householdId, you, refresh]);
+
   /* The name everyone in the household sees for you. */
   const updateMyName = useCallback(async (name) => {
     const trimmed = String(name || '').trim();
@@ -988,6 +998,7 @@ export function KettleProvider({ children }) {
     setMode,
     renameHousehold,
     updateMyName,
+    setPayoutRef,
     finishFirstRun,
     tracking,
     closedStatus,
@@ -1012,7 +1023,7 @@ export function KettleProvider({ children }) {
     snoozeItem,
     refreshNow,
     openCount
-  }), [loading, error, dataShape, you, partner, members, others, statusOf, setStatus, setFlag, flag, detailsIn, labelOf, find, all, balance, balances, cycleTotals, mode, setMode, renameHousehold, updateMyName, finishFirstRun, tracking, closedStatus, owedBreakdown, settleAll, settleWith, addBill, updateBill, removeBill, addLending, updateLending, removeLending, recordPayment, recordBillAmount, endBill, reopenBill, memberExitSummary, removeMember, deleteAccount, updateReminders, needsYou, snoozeItem, refreshNow, openCount]);
+  }), [loading, error, dataShape, you, partner, members, others, statusOf, setStatus, setFlag, flag, detailsIn, labelOf, find, all, balance, balances, cycleTotals, mode, setMode, renameHousehold, updateMyName, setPayoutRef, finishFirstRun, tracking, closedStatus, owedBreakdown, settleAll, settleWith, addBill, updateBill, removeBill, addLending, updateLending, removeLending, recordPayment, recordBillAmount, endBill, reopenBill, memberExitSummary, removeMember, deleteAccount, updateReminders, needsYou, snoozeItem, refreshNow, openCount]);
 
   return <KettleCtx.Provider value={value}>{children}</KettleCtx.Provider>;
 }

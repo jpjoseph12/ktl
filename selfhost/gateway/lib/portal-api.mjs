@@ -153,7 +153,7 @@ async function requireOwner(req) {
 async function overview(hid) {
   const db = getPool();
   const [{ rows: [household] }, { rows: [reminders] }, { rows: people }, invites, health] = await Promise.all([
-    db.query('select id, name, mode from public.households where id = $1', [hid]),
+    db.query('select id, name, mode, payout_ref as "payoutRef" from public.households where id = $1', [hid]),
     db.query(
       `select details_lead as "detailsLead", to_char(details_time, 'HH24:MI') as "detailsTime",
               payment_lead as "paymentLead", to_char(payment_time, 'HH24:MI') as "paymentTime",
@@ -459,6 +459,11 @@ export function createPortalApi({ clientIp, sendJson, onPushChanged = () => {} }
           const name = String(body.name || '').replace(/\p{Cc}/gu, '').trim();
           if (!name || name.length > 60) throw new HttpError(400, 'bad_household', 'Give your household a name (up to 60 characters).');
           await client.query('update public.households set name = $2 where id = $1', [hid, name]);
+        }
+        if ('payoutRef' in body) {
+          const ref = String(body.payoutRef || '').replace(/\p{Cc}/gu, '').trim();
+          if (ref.length > 18) throw new HttpError(400, 'bad_reference', 'Keep the reference to 18 characters — the most UK banks allow.');
+          await client.query('update public.households set payout_ref = $2 where id = $1', [hid, ref || null]);
         }
         if ('mode' in body) {
           if (!['chase', 'track'].includes(body.mode)) throw new HttpError(400, 'bad_mode', 'Choose chase-and-confirm or tracking only.');

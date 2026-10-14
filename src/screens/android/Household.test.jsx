@@ -193,3 +193,33 @@ describe('AndroidHousehold — removing someone and leaving', () => {
     expect(screen.getByText(/nothing of theirs is outstanding/i)).toBeInTheDocument();
   });
 });
+
+describe('AndroidHousehold — reminders and the transfer reference', () => {
+  beforeEach(() => {
+    useKettle.mockReset();
+  });
+
+  it('saves the reminder switches for the household instead of just flipping them', async () => {
+    const user = userEvent.setup();
+    const updateReminders = vi.fn().mockResolvedValue(undefined);
+    renderHousehold({ updateReminders });
+
+    await user.click(screen.getByRole('switch', { name: 'Nudge if nobody confirms' }));
+    expect(updateReminders).toHaveBeenCalledWith({ nudgeAfter: 0 });
+    await user.click(screen.getByRole('switch', { name: 'Quiet hours' }));
+    expect(updateReminders).toHaveBeenCalledWith({ quietFrom: '00:00', quietTo: '00:00' });
+    await user.click(screen.getByRole('switch', { name: 'Sunday summary' }));
+    expect(updateReminders).toHaveBeenCalledWith({ weeklyDigest: false });
+  });
+
+  it('lets anyone set the transfer reference, even when there isn’t one yet', async () => {
+    const user = userEvent.setup();
+    const setPayoutRef = vi.fn().mockResolvedValue(undefined);
+    renderHousehold({ setPayoutRef });
+
+    await user.click(screen.getByRole('button', { name: /transfer reference/i }));
+    await user.type(screen.getByLabelText('Reference'), 'FLAT4 BILLS');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(setPayoutRef).toHaveBeenCalledWith('FLAT4 BILLS');
+  });
+});

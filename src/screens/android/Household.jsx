@@ -197,6 +197,26 @@ function HouseholdBody({ tablet = false }) {
   const [nickname, setNickname] = useState('');
   const [nicknameInvalid, setNicknameInvalid] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  const [reference, setReference] = useState('');
+  const [savingRef, setSavingRef] = useState(false);
+
+  function openReferenceSheet() {
+    setReference(household.payoutRef || '');
+    open('sheet-reference');
+  }
+
+  async function saveReference() {
+    setSavingRef(true);
+    try {
+      await K.setPayoutRef(reference);
+      close();
+      toast(reference.trim() ? 'Reference saved.' : 'Reference removed.');
+    } catch (err) {
+      toast(err.message || 'Could not save the reference.');
+    } finally {
+      setSavingRef(false);
+    }
+  }
 
   function openRenameSheet() {
     setNickname(household.name || '');
@@ -376,15 +396,13 @@ function HouseholdBody({ tablet = false }) {
               </span>
               <span className="tag num">{household.split}</span>
             </div>
-            {household.payoutRef && (
-              <div className="item">
-                <span className="grow">
-                  <span className="item-title" style={{ display: 'block' }}>Transfer reference</span>
-                  <span className="item-sub">Added to every settle-up so it’s findable later</span>
-                </span>
-                <span className="tag num">{household.payoutRef}</span>
-              </div>
-            )}
+            <button className="item" onClick={openReferenceSheet}>
+              <span className="grow">
+                <span className="item-title" style={{ display: 'block' }}>Transfer reference</span>
+                <span className="item-sub">{household.payoutRef ? 'Shown with every payment, so it’s findable in your bank later' : 'Optional — add one to show with every payment'}</span>
+              </span>
+              {household.payoutRef ? <span className="tag num">{household.payoutRef}</span> : <Icon name="pencil" size={16} />}
+            </button>
           </div>
           <p className="hint">
             <Icon name="lock" size={16} />
@@ -502,6 +520,24 @@ function HouseholdBody({ tablet = false }) {
         </div>
         <div className="sheet-foot">
           <button className="btn btn-primary btn-block" disabled={renaming} onClick={saveRename}>{renaming ? 'Saving…' : 'Save'}</button>
+          <button className="btn btn-ghost btn-block" onClick={close}>Cancel</button>
+        </div>
+      </Sheet>
+
+      <Sheet id="sheet-reference" titleId="sheet-reference-title">
+        <div className="sheet-head">
+          <h2 className="sheet-title" id="sheet-reference-title">Transfer reference</h2>
+          <p className="item-sub" style={{ marginTop: 4 }}>Shown beside the amount and account whenever someone sends money for a bill, to put on the bank transfer. Everyone in the household sees it.</p>
+        </div>
+        <div className="sheet-body">
+          <div className="field">
+            <label htmlFor="household-reference">Reference</label>
+            <input className="input num-input" id="household-reference" type="text" maxLength={18} value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. FLAT4 BILLS" autoCapitalize="characters" />
+            <span className="field-help">Up to 18 characters — the most UK banks allow. Leave it empty to remove it.</span>
+          </div>
+        </div>
+        <div className="sheet-foot">
+          <button className="btn btn-primary btn-block" disabled={savingRef} onClick={saveReference}>{savingRef ? 'Saving…' : 'Save'}</button>
           <button className="btn btn-ghost btn-block" onClick={close}>Cancel</button>
         </div>
       </Sheet>

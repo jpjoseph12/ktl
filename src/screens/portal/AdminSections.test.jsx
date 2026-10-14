@@ -85,7 +85,7 @@ describe('Admin — Household', () => {
     expect(apiFetch).toHaveBeenCalledWith('/api/admin/household', {
       method: 'PUT',
       body: {
-        name: 'The Burrow', mode: 'track',
+        name: 'The Burrow', mode: 'track', payoutRef: '',
         reminders: { detailsLead: 5, detailsTime: '09:00', paymentLead: 3, paymentTime: '18:00', nudgeAfter: 0, quietFrom: '00:00', quietTo: '00:00', weeklyDigest: true }
       }
     });

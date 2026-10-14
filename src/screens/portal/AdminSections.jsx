@@ -93,7 +93,7 @@ export function HouseholdSection({ admin }) {
   const { data, setData } = admin;
   const r = { detailsLead: 5, detailsTime: '09:00', paymentLead: 2, paymentTime: '18:00', nudgeAfter: 24, quietFrom: '22:00', quietTo: '08:00', weeklyDigest: true, ...(data.household.reminders || {}) };
   const [form, setForm] = useState(() => ({
-    name: data.household.name || '', mode: data.household.mode || 'chase',
+    name: data.household.name || '', mode: data.household.mode || 'chase', payoutRef: data.household.payoutRef || '',
     detailsLead: String(r.detailsLead), detailsTime: r.detailsTime, paymentLead: String(r.paymentLead), paymentTime: r.paymentTime,
     nudge: r.nudgeAfter > 0, quiet: r.quietFrom !== r.quietTo, digest: r.weeklyDigest !== false
   }));
@@ -106,6 +106,7 @@ export function HouseholdSection({ admin }) {
       body: {
         name: form.name,
         mode: form.mode,
+        payoutRef: form.payoutRef,
         reminders: {
           detailsLead: Number(form.detailsLead), detailsTime: form.detailsTime, paymentLead: Number(form.paymentLead), paymentTime: form.paymentTime,
           nudgeAfter: form.nudge ? (r.nudgeAfter > 0 ? r.nudgeAfter : 24) : 0,
@@ -125,6 +126,11 @@ export function HouseholdSection({ admin }) {
             <label htmlFor="household-name">Household name</label>
             <input className="input" id="household-name" value={form.name} onChange={set('name')} maxLength={60} />
             <span className="field-help">Shown to everyone in the household, and in invites.</span>
+          </div>
+          <div className="field">
+            <label htmlFor="household-reference">Transfer reference</label>
+            <input className="input num-input" id="household-reference" value={form.payoutRef} onChange={set('payoutRef')} maxLength={18} placeholder="e.g. FLAT4 BILLS" />
+            <span className="field-help">Optional. Shown with every payment, to put on the bank transfer. Up to 18 characters.</span>
           </div>
         </div>
       </section>
