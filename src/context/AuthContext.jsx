@@ -32,14 +32,19 @@ function authRedirect() {
   return Capacitor.isNativePlatform() ? NATIVE_AUTH_REDIRECT : `${window.location.origin}/android/home`;
 }
 
-function parseTokensFromUrl(url) {
-  const hash = url && url.split('#')[1];
-  if (!hash) return null;
-  const params = new URLSearchParams(hash);
-  const access_token = params.get('access_token');
-  const refresh_token = params.get('refresh_token');
-  if (!access_token || !refresh_token) return null;
-  return { access_token, refresh_token };
+/* The one-time code (and its flow id) from a ktl://auth/callback link.
+   Raw tokens in a link are never accepted: anything could send the app a
+   ktl:// link, and taking a session from one would sign this phone into
+   whoever's account the sender chose. */
+export function codeFromCallback(url) {
+  if (!url || !url.startsWith(NATIVE_AUTH_REDIRECT)) return null;
+  try {
+    const params = new URL(url).searchParams;
+    const code = params.get('code');
+    return code ? { code, flowId: params.get('sb_flow_id') || undefined } : null;
+  } catch {
+    return null;
+  }
 }
 
 export function AuthProvider({ children }) {
@@ -122,10 +127,14 @@ export function AuthProvider({ children }) {
     if (!Capacitor.isNativePlatform()) return;
 
     function applyUrl(url) {
-      const tokens = parseTokensFromUrl(url);
-      if (!tokens) return;
-      if (/[#&]type=recovery(&|$)/.test(url)) setRecovering(true);
-      api.auth.setSession(tokens).catch((err) => console.error('Failed to apply session from email link', err));
+      const found = codeFromCallback(url);
+      if (!found) return;
+      // Swapped for a session only with the secret this app kept when it
+      // asked for the email; a reset link also fires PASSWORD_RECOVERY,
+      // which asks for the new password.
+      api.auth.exchangeCodeForSession(found.code, found.flowId ? { flowId: found.flowId } : undefined)
+        .then(({ error }) => { if (error) console.error('That sign-in link couldn’t be used', error.message); })
+        .catch((err) => console.error('That sign-in link couldn’t be used', err));
     }
 
     CapApp.getLaunchUrl().then((result) => applyUrl(result?.url));

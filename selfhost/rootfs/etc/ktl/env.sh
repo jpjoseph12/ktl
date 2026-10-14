@@ -37,8 +37,9 @@ KTL_SITE_URL="${KTL_SITE_URL%/}"
 API_EXTERNAL_URL="$KTL_SITE_URL/auth/v1"
 GOTRUE_API_HOST=127.0.0.1
 GOTRUE_SITE_URL="$KTL_SITE_URL"
-# Where a reset link may send someone: this site, or into the Android app.
-GOTRUE_URI_ALLOW_LIST="$KTL_SITE_URL/**,ktl://auth/callback,https://localhost/**"
+# Where a reset link may send someone: this site, or into the Android app
+# (whose link carries a ?sb_flow_id=… for its one-time code).
+GOTRUE_URI_ALLOW_LIST="$KTL_SITE_URL/**,ktl://auth/callback,ktl://auth/callback?**,https://localhost/**"
 GOTRUE_DB_DRIVER=postgres
 GOTRUE_DB_DATABASE_URL="postgres://supabase_auth_admin:${KTL_AUTH_ADMIN_PASSWORD}@127.0.0.1:5432/postgres?search_path=auth&sslmode=disable"
 DATABASE_URL="$GOTRUE_DB_DATABASE_URL"

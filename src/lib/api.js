@@ -54,7 +54,15 @@ export const SERVER_URL = resolveServerUrl({
    library insists on one, so this placeholder fills the slot. */
 const CLIENT_KEY = 'ktl';
 
-export const api = SERVER_URL ? createClient(SERVER_URL, CLIENT_KEY) : null;
+/* In the Android app, email links come back through ktl://auth/callback —
+   a custom link another app could also claim. So the app uses PKCE: the
+   link carries only a one-time code, useless without a secret this app
+   kept when it asked for the email. In a browser, links return to the
+   server's own https address, and the owner's set-password links (made
+   by the server, not by this app) need the classic flow. */
+export const AUTH_FLOW = IS_NATIVE ? 'pkce' : 'implicit';
+
+export const api = SERVER_URL ? createClient(SERVER_URL, CLIENT_KEY, { auth: { flowType: AUTH_FLOW } }) : null;
 
 export function hasServer() {
   return Boolean(SERVER_URL);
