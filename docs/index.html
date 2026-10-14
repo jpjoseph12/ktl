@@ -302,7 +302,48 @@
     </div>
   </section>
 
-  <!--GALLERY-->
+  <section class="section" id="devices">
+    <div class="container">
+      <div class="gallery-head">
+        <div class="head-lg" style="margin-bottom: 0;">
+          <p class="eyebrow">The same household, three canvases</p>
+          <h2>How it works on mobile, tablet and desktop.</h2>
+          <p>One household — made up for these pictures — on an Android phone, an Android tablet and a computer's browser. Pick a screen and all three change.</p>
+        </div>
+        <div class="gallery-controls">
+          <div class="seg" role="tablist" aria-label="Screen" data-screen-toggle>
+            <button role="tab" type="button" aria-selected="true" data-screen="home">Home</button>
+            <button role="tab" type="button" aria-selected="false" data-screen="bills">Bills</button>
+            <button role="tab" type="button" aria-selected="false" data-screen="settle">Balance</button>
+            <button role="tab" type="button" aria-selected="false" data-screen="alerts">Alerts</button>
+            <button role="tab" type="button" aria-selected="false" data-screen="yours">Yours</button>
+            <button role="tab" type="button" aria-selected="false" data-screen="household">House</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="gallery shots">
+        <figure class="frame phone">
+          <div class="device phone"><img data-shot="phone" src="screens/phone-home.png" alt="KTL on an Android phone" loading="lazy" /></div>
+          <figcaption class="frame-caption"><h3>Mobile</h3><span class="meta">Android</span></figcaption>
+          <p class="frame-note">One column, a bottom bar, a badged bell for the reminder queue, and a private Yours tab. The phone is where the reminders land.</p>
+        </figure>
+        <figure class="frame tablet">
+          <div class="device tablet"><img data-shot="tablet" src="screens/tablet-home.png" alt="KTL on an Android tablet" loading="lazy" /></div>
+          <figcaption class="frame-caption"><h3>Tablet</h3><span class="meta">Android tablet</span></figcaption>
+          <p class="frame-note">A persistent sidebar, a list pane and a detail pane that updates as you select.</p>
+        </figure>
+        <figure class="frame desktop">
+          <div class="device browser">
+            <div class="browser-bar"><span class="browser-dots" aria-hidden="true"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span></span><span class="browser-url">https://ktl.example.com</span></div>
+            <img data-shot="desktop" src="screens/desktop-home.png" alt="KTL in a desktop browser" loading="lazy" />
+          </div>
+          <figcaption class="frame-caption"><h3>Desktop</h3><span class="meta">Browser</span></figcaption>
+          <p class="frame-note">On a computer, just open the address in a browser — the same wide layout as tablets. Nothing to install.</p>
+        </figure>
+      </div>
+    </div>
+  </section>
 
   <section class="section" id="reach">
     <div class="container">

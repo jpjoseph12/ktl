@@ -93,6 +93,17 @@
 .setup-guide .browser-url { flex: 1; min-width: 0; height: 24px; display: flex; align-items: center; padding: 0 var(--space-3); border-radius: var(--radius-pill); background: var(--surface); border: 1px solid var(--border-soft); font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; }
 .setup-guide .frame-inner.browser iframe { position: absolute; top: 40px; left: 0; width: 1194px; height: 860px; }
 
+/* Screenshots in device frames (the gallery on GitHub Pages). */
+.setup-guide .gallery.shots { grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.25fr) minmax(0, 1.25fr); align-items: start; }
+.setup-guide .device { width: 100%; background: var(--fg); box-shadow: var(--elev-raised); }
+.setup-guide .device img { display: block; width: 100%; height: auto; background: var(--bg); }
+.setup-guide .device.phone { padding: 8px; border-radius: 30px; }
+.setup-guide .device.phone img { border-radius: 23px; }
+.setup-guide .device.tablet { padding: 9px; border-radius: 20px; }
+.setup-guide .device.tablet img { border-radius: 12px; }
+.setup-guide .device.browser { position: relative; padding-top: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.setup-guide .shots .frame.phone { max-width: 260px; }
+
 /* ── reach / run ─────────────────────────────────────────────────── */
 .setup-guide .env-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .setup-guide .env-table th, .setup-guide .env-table td { text-align: left; padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border-soft); vertical-align: top; }
@@ -119,4 +130,9 @@
 @media (max-width: 768px) {
   .setup-guide .grid-2, .setup-guide .split { grid-template-columns: 1fr; gap: var(--space-4); }
   .setup-guide .head-lg h2 { font-size: var(--text-lg); }
+}
+
+@media (max-width: 1024px) {
+  .setup-guide .gallery.shots { grid-template-columns: 1fr; }
+  .setup-guide .shots .frame.tablet, .setup-guide .shots .frame.desktop { max-width: 560px; }
 }

@@ -100,6 +100,8 @@ const KINDS = {
   desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 }
 };
 
+let failures = 0;
+
 async function photograph() {
   const { chromium } = await import('playwright');
   fs.mkdirSync(OUT, { recursive: true });
@@ -107,6 +109,7 @@ async function photograph() {
   for (const [kind, options] of Object.entries(KINDS)) {
     const context = await browser.newContext({ ...options, colorScheme: 'light' });
     const page = await context.newPage();
+    page.on('console', (m) => { if (m.type() === 'error') console.error(`  [${kind} console] ${m.text().slice(0, 300)}`); });
     await page.goto(`${BASE}/android/onboarding`);
     await page.getByRole('button', { name: 'Log in' }).click();
     await page.fill('#signin-email', EMAIL);
@@ -115,7 +118,16 @@ async function photograph() {
     await page.locator('nav[aria-label="Main"]').waitFor({ timeout: 45000 });
     for (const screen of SCREENS) {
       await page.goto(`${BASE}/android/${screen}`);
-      await page.locator('nav[aria-label="Main"]').waitFor({ timeout: 30000 });
+      try {
+        await page.locator('nav[aria-label="Main"]').waitFor({ timeout: 30000 });
+      } catch {
+        // Keep what's on screen, say what it said, and carry on.
+        await page.screenshot({ path: path.join(OUT, `failed-${kind}-${screen}.png`) });
+        const said = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
+        console.error(`  ${kind}/${screen} didn't load: ${said}`);
+        failures++;
+        continue;
+      }
       await page.waitForTimeout(1500);
       const skip = page.getByRole('button', { name: 'Skip tour' });
       if (await skip.isVisible().catch(() => false)) await skip.click();
@@ -131,3 +143,7 @@ async function photograph() {
 await seed();
 console.log('Seeded a made-up household (Flat 4: Alex Rivera and Sam Okafor).');
 await photograph();
+if (failures) {
+  console.error(`${failures} screen(s) didn't load — see failed-*.png.`);
+  process.exit(1);
+}
