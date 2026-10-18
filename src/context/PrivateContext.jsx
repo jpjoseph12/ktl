@@ -253,17 +253,19 @@ export function PrivateProvider({ children }) {
   const setPersonal = useCallback(async (id, key, value) => {
     if (!user) return;
     const column = PERSONAL_COLUMNS[key] || key;
+    // Nothing to clear: skip it, so this works on a server from before renewals.
+    if (PERSONAL_COLUMNS[key] && !value && !personal.find((p) => p.id === id)?.[key]) return;
     const { error } = await api.from('personal_bills').update({ [column]: value }).eq('id', id).eq('user_id', user.id);
     if (error) throw error;
     await refresh(user.id);
-  }, [user, refresh]);
+  }, [user, refresh, personal]);
 
   const addPersonal = useCallback(async (bill) => {
     if (!user) return;
     const { error } = await api.from('personal_bills').insert({
       user_id: user.id, name: bill.name, kind: bill.kind || 'Personal', glyph: bill.glyph || 'card',
       amount: bill.amount, day: bill.day,
-      renews_on: bill.renewsOn || null, renewal_kind: bill.renewalKind || null
+      ...(bill.renewsOn || bill.renewalKind ? { renews_on: bill.renewsOn || null, renewal_kind: bill.renewalKind || null } : {})
     });
     if (error) throw error;
     await refresh(user.id);

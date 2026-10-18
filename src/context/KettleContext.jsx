@@ -26,6 +26,13 @@ export function useKettle() {
    never silently dropped. `payer`/`theirShare`/`detailsPartner` stay as
    compat aliases (first-other-member-flavoured) for call sites not yet
    upgraded to the per-person `shares`/`details` maps. */
+/* A bill's renewal columns, only when there's something to save or clear —
+   so this app still saves bills on a server from before renewals existed. */
+function renewalColumns(renewsOn, renewalKind, before) {
+  if (!renewsOn && !renewalKind && !before?.renewsOn && !before?.renewalKind) return {};
+  return { renews_on: renewsOn || null, renewal_kind: renewalKind || null };
+}
+
 function normalizeShared(row, shares, details, youId, otherMemberIds, table) {
   const shareMap = {};
   const paidMap = {};
@@ -484,9 +491,9 @@ export function KettleProvider({ children }) {
         due_date: dueDate, frequency: frequencyLabel(unit, count, day),
         frequency_unit: unit, frequency_count: count,
         status: 'scheduled', needs_details: !!needsDetails, created_by: you.id,
-        renews_on: renewsOn || null, renewal_kind: renewalKind || null,
         provider: logoMatch?.provider ?? null, logo: logoMatch?.logo ?? null,
-        logo_w: logoMatch?.logoW ?? null, logo_h: logoMatch?.logoH ?? null
+        logo_w: logoMatch?.logoW ?? null, logo_h: logoMatch?.logoH ?? null,
+        ...renewalColumns(renewsOn, renewalKind)
       })
       .select()
       .single();
@@ -811,9 +818,9 @@ export function KettleProvider({ children }) {
         name, glyph, total, payer_id: payerId, due_date: dueDate,
         frequency: frequencyLabel(unit, count, day),
         frequency_unit: unit, frequency_count: count, needs_details: !!needsDetails,
-        renews_on: renewsOn || null, renewal_kind: renewalKind || null,
         provider: logoMatch?.provider ?? null, logo: logoMatch?.logo ?? null,
-        logo_w: logoMatch?.logoW ?? null, logo_h: logoMatch?.logoH ?? null
+        logo_w: logoMatch?.logoW ?? null, logo_h: logoMatch?.logoH ?? null,
+        ...renewalColumns(renewsOn, renewalKind, item)
       })
       .eq('id', id);
     if (billErr) throw billErr;
