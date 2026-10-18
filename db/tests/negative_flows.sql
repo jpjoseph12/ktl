@@ -257,7 +257,7 @@ reset role;
 -- T13: deal checks are written by the server only; members read their
 -- household's, and someone outside it reads none. A bill's renewal kind
 -- only takes the known values.
-do $$$$
+do $$
 declare bill uuid; hid uuid;
 begin
   select household_id into hid from public.household_members where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
@@ -273,10 +273,10 @@ begin
   exception
     when check_violation then null;
   end;
-end $$$$;
+end $$;
 set local "request.jwt.claim.sub" to 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
 set local role authenticated;
-do $$$$
+do $$
 declare c int; bill uuid;
 begin
   select value::uuid into bill from test_state where key = 'deal_bill';
@@ -289,16 +289,16 @@ begin
   exception
     when insufficient_privilege then null;
   end;
-end $$$$;
+end $$;
 set local "request.jwt.claim.sub" to 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa7';
 set local role authenticated;
-do $$$$
+do $$
 declare c int;
 begin
   select count(*) into c from public.deal_checks;
   if c <> 0 then raise exception 'FAIL T13: someone outside the household sees % deal checks', c; end if;
   insert into test_results (id, status, detail) values ('T13', 'PASS', 'deal checks are server-written and household-only');
-end $$$$;
+end $$;
 reset role;
 
 select id, status, detail from test_results order by seq;
