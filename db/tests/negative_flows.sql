@@ -59,7 +59,8 @@ begin
     ('activity','SELECT'), ('activity','INSERT'),
     ('private_settings','SELECT'), ('personal_bills','SELECT'), ('personal_bills','DELETE'),
     ('debts','SELECT'), ('debts','DELETE'),
-    ('savings_opportunities','SELECT'), ('savings_opportunities','DELETE')
+    ('savings_opportunities','SELECT'), ('savings_opportunities','DELETE'),
+    ('deal_checks','SELECT')
   ) as p(tablename, priv)
   where not exists (
     select 1 from information_schema.role_table_grants g
@@ -251,6 +252,53 @@ begin
       insert into test_results (id, status, detail) values ('T12', 'PASS', 'invites are hidden from the app');
   end;
 end $$;
+reset role;
+
+-- T13: deal checks are written by the server only; members read their
+-- household's, and someone outside it reads none. A bill's renewal kind
+-- only takes the known values.
+do $
+declare bill uuid; hid uuid;
+begin
+  select household_id into hid from public.household_members where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
+  insert into public.bills (household_id, name, glyph, total, payer_id, due_date, status, created_by, renews_on, renewal_kind)
+  values (hid, 'Test energy', 'bolt', 90, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', current_date + 10, 'scheduled', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', current_date + 40, 'energy')
+  returning id into bill;
+  insert into public.deal_checks (household_id, bill_id, checked_by, provider, model, result)
+  values (hid, bill, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', 'anthropic', 'test', '{"summary":"ok"}');
+  insert into test_state (key, value) values ('deal_bill', bill::text);
+  begin
+    update public.bills set renewal_kind = 'gym' where id = bill;
+    raise exception 'FAIL T13: a renewal kind outside the list was accepted';
+  exception
+    when check_violation then null;
+  end;
+end $;
+set local "request.jwt.claim.sub" to 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
+set local role authenticated;
+do $
+declare c int; bill uuid;
+begin
+  select value::uuid into bill from test_state where key = 'deal_bill';
+  select count(*) into c from public.deal_checks where bill_id = bill;
+  if c <> 1 then raise exception 'FAIL T13: a member sees % deal checks, expected 1', c; end if;
+  begin
+    insert into public.deal_checks (household_id, bill_id, checked_by, provider, model, result)
+    select household_id, bill, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', 'x', 'x', '{}' from public.bills where id = bill;
+    raise exception 'FAIL T13: the app could write a deal check';
+  exception
+    when insufficient_privilege then null;
+  end;
+end $;
+set local "request.jwt.claim.sub" to 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa7';
+set local role authenticated;
+do $
+declare c int;
+begin
+  select count(*) into c from public.deal_checks;
+  if c <> 0 then raise exception 'FAIL T13: someone outside the household sees % deal checks', c; end if;
+  insert into test_results (id, status, detail) values ('T13', 'PASS', 'deal checks are server-written and household-only');
+end $;
 reset role;
 
 select id, status, detail from test_results order by seq;

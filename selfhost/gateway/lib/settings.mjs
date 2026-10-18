@@ -26,9 +26,12 @@ export const KEYS = {
   trustProxy: 'KTL_TRUST_PROXY',
   backupHour: 'KTL_BACKUP_HOUR',
   backupKeep: 'KTL_BACKUP_KEEP',
-  timezone: 'KTL_TIMEZONE'
+  timezone: 'KTL_TIMEZONE',
+  aiProvider: 'KTL_AI_PROVIDER',
+  aiApiKey: 'KTL_AI_API_KEY',
+  aiModel: 'KTL_AI_MODEL'
 };
-const SECRET = new Set(['KTL_SMTP_PASS', 'CLOUDFLARE_TUNNEL_TOKEN']);
+const SECRET = new Set(['KTL_SMTP_PASS', 'CLOUDFLARE_TUNNEL_TOKEN', 'KTL_AI_API_KEY']);
 
 /* The environment as the container started it — before env.sh merged the
    settings file in — so the gateway can tell "set by the container" from

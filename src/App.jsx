@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppLockProvider } from './context/AppLockContext';
 import { KettleProvider, useKettle } from './context/KettleContext';
 import { PrivateProvider, usePrivate } from './context/PrivateContext';
+import ReminderScheduler from './components/ReminderScheduler';
 import { WalkthroughProvider } from './context/WalkthroughContext';
 import WalkthroughOverlay from './components/WalkthroughOverlay';
 import LoadingScreen from './components/LoadingScreen';
@@ -208,6 +209,7 @@ export default function App() {
       <AppLockProvider>
         <KettleProvider>
           <PrivateProvider>
+            <ReminderScheduler />
             <BrowserRouter>
               <AppRoutes />
             </BrowserRouter>

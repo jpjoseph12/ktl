@@ -17,6 +17,8 @@ import PullToRefresh from '../../components/PullToRefresh';
 import SpendingReview from '../../components/SpendingReview';
 import TabletShell, { TabletTopbar } from '../../components/tablet/TabletShell';
 import useIsTablet from '../../lib/useIsTablet';
+import DealCard from '../../components/DealCard';
+import RenewalFields, { renewalPayload } from '../../components/RenewalFields';
 
 const STRATEGY_HELP = {
   snowball: 'Smallest balance first — the list gets shorter fastest, which is easier to keep going with.',
@@ -153,6 +155,8 @@ function YoursBody({ tablet = false }) {
   const [pNameInvalid, setPNameInvalid] = useState(false);
   const [pAmountInvalid, setPAmountInvalid] = useState(false);
   const [pDayInvalid, setPDayInvalid] = useState(false);
+  const [pRenewsOn, setPRenewsOn] = useState('');
+  const [pRenewalPick, setPRenewalPick] = useState('');
 
   function openPersonalSheet(id) {
     setEditingPersonalId(id || null);
@@ -161,6 +165,8 @@ function YoursBody({ tablet = false }) {
     setPName(src ? src.name : '');
     setPAmount(src ? Number(src.amount).toFixed(2) : '');
     setPDay(src ? String(src.day) : '1');
+    setPRenewsOn(src?.renewsOn || '');
+    setPRenewalPick(src?.renewalKind || '');
     setPNameInvalid(false);
     setPAmountInvalid(false);
     setPDayInvalid(false);
@@ -177,7 +183,7 @@ function YoursBody({ tablet = false }) {
     setPDayInvalid(!okDay);
     if (!okName || !okAmount || !okDay) return;
     const glyph = M.glyphFor(pName);
-    const bill = { name: pName.trim(), amount: parseFloat(pAmount), day, glyph, kind: M.kindFor(glyph) };
+    const bill = { name: pName.trim(), amount: parseFloat(pAmount), day, glyph, kind: M.kindFor(glyph), ...renewalPayload(pName, pRenewsOn, pRenewalPick, glyph) };
     setBusy(true);
     try {
       if (editingPersonalId) {
@@ -986,6 +992,8 @@ function YoursBody({ tablet = false }) {
             </select>
             <span className="field-error">Pick a day between 1 and 31.</span>
           </div>
+          <RenewalFields idPrefix="p" name={pName} glyph={M.glyphFor(pName)} renewsOn={pRenewsOn} onRenewsOn={setPRenewsOn} pick={pRenewalPick} onPick={setPRenewalPick} />
+          {editingPersonalId && <DealCard bill={st.personal.find((x) => x.id === editingPersonalId)} />}
         </div>
         <div className="sheet-foot">
           <button className="btn btn-primary btn-block" disabled={busy} onClick={savePersonal}>{busy ? 'Saving…' : 'Save'}</button>

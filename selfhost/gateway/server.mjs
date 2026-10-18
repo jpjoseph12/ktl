@@ -281,7 +281,7 @@ export function createHandler({ feed, onPushChanged }) {
         return proxy(req, res, config.postgrest, (p.slice('/rest/v1'.length) || '/') + url.search);
       }
       if (p === '/live') return await liveHandler(req, res, url);
-      if (/^\/api\/(setup|admin|account|invite)(\/|$)/.test(p)) return await portal(req, res, p);
+      if (/^\/api\/(setup|admin|account|invite|deals)(\/|$)/.test(p)) return await portal(req, res, p);
       if (p.startsWith('/api/')) return sendJson(req, res, 404, { error: 'not_found' });
       return await serveStatic(req, res, p);
     } catch (err) {

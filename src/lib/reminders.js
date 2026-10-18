@@ -10,6 +10,7 @@
  * fabricated or example schedule in here.
  */
 import { OPEN, ordinalSuffix } from './kettle';
+import { renewalReminders } from './renewals';
 
 /* Android's LocalNotifications wants a stable 32-bit int id, but our
    records are uuids. Hash the bill id + kind so rescheduling the same
@@ -147,6 +148,9 @@ export function plannedReminders({ bills = [], reminders = {}, members = [], mod
     }
   });
 
+  /* When a deal is coming to an end: time to look for a better one. */
+  out.push(...renewalReminders(bills, { applyQuietHours, reminderId, quietFrom: reminders.quietFrom, quietTo: reminders.quietTo, scope: 'shared' }));
+
   /* Sunday evening: what's due in the week ahead. */
   if (reminders.weeklyDigest !== false) {
     const at = nextSundayEvening(now);
@@ -170,4 +174,12 @@ export function plannedReminders({ bills = [], reminders = {}, members = [], mod
   }
 
   return out.filter((r) => r.at > now).sort((a, b) => a.at - b.at);
+}
+
+/* Renewal reminders for your own private bills. Planned apart from the
+   household's list so they only ever reach this phone's notifications —
+   never the household's Alerts screen. */
+export function personalRenewalReminders({ bills = [], reminders = {}, now = new Date() } = {}) {
+  return renewalReminders(bills, { applyQuietHours, reminderId, quietFrom: reminders.quietFrom, quietTo: reminders.quietTo, scope: 'personal' })
+    .filter((r) => r.at > now);
 }

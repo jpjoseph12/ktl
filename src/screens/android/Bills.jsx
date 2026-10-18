@@ -16,6 +16,8 @@ import { parseBillAmount } from '../../lib/validation';
 import { useWalkthrough } from '../../context/WalkthroughContext';
 import TabletShell, { TabletTopbar } from '../../components/tablet/TabletShell';
 import useIsTablet from '../../lib/useIsTablet';
+import DealCard from '../../components/DealCard';
+import RenewalFields, { renewalPayload } from '../../components/RenewalFields';
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -122,6 +124,8 @@ function BillsBody({ tablet = false }) {
   const [frequency, setFrequency] = useState('month:1');
   const [payerId, setPayerId] = useState(K.you?.id || '');
   const [needsDetails, setNeedsDetails] = useState(false);
+  const [renewsOn, setRenewsOn] = useState('');
+  const [renewalPick, setRenewalPick] = useState('');
   const [splitMode, setSplitMode] = useState('equal');
   const [splitAllWho, setSplitAllWho] = useState(K.you?.id || '');
   const [splitCustomPercents, setSplitCustomPercents] = useState({});
@@ -346,6 +350,7 @@ function BillsBody({ tablet = false }) {
             />
           </div>
         </div>
+        {!isLending && <DealCard bill={b} shared onAddDate={() => openEditBill(b)} />}
         {b.note && <p className="hint"><Icon name="alert" size={16} />{b.note}</p>}
       </>
     );
@@ -436,6 +441,8 @@ function BillsBody({ tablet = false }) {
     setFrequency('month:1');
     setPayerId(K.you?.id || '');
     setNeedsDetails(false);
+    setRenewsOn('');
+    setRenewalPick('');
     setSplitMode('equal');
     setSplitAllWho(K.you?.id || '');
     setSplitCustomPercents({});
@@ -459,6 +466,8 @@ function BillsBody({ tablet = false }) {
     setFrequency(frequencyKey(b.frequencyUnit || 'month', b.frequencyCount || 1));
     setPayerId(b.payerId);
     setNeedsDetails(!!b.needsDetails);
+    setRenewsOn(b.renewsOn || '');
+    setRenewalPick(b.renewalKind || '');
 
     const memberIds = members.map((m) => m.id);
     const eq = equalShares(b.total, memberIds);
@@ -510,7 +519,8 @@ function BillsBody({ tablet = false }) {
         frequencyUnit: frequency.split(':')[0],
         frequencyCount: Number(frequency.split(':')[1]) || 1,
         needsDetails,
-        splitPercents: others.length > 0 ? resolveSplitPercents() : undefined
+        splitPercents: others.length > 0 ? resolveSplitPercents() : undefined,
+        ...renewalPayload(name, renewsOn, renewalPick)
       };
       if (editingBillId) {
         await K.updateBill(editingBillId, payload);
@@ -927,6 +937,7 @@ function BillsBody({ tablet = false }) {
               <input className="input num-input" id="new-day" type="text" inputMode="numeric" value={day} onChange={(e) => setDay(e.target.value)} />
             </div>
           )}
+          <RenewalFields idPrefix="new" name={name} renewsOn={renewsOn} onRenewsOn={setRenewsOn} pick={renewalPick} onPick={setRenewalPick} />
           <label className="confirm-row" htmlFor="new-details">
             <input type="checkbox" id="new-details" checked={needsDetails} onChange={(e) => setNeedsDetails(e.target.checked)} />
             <span>Ask everyone for details before this one is due — meter readings, usage, anything that changes the amount.</span>

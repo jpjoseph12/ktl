@@ -56,6 +56,13 @@ export const config = {
     const n = Number(settings.get('KTL_BACKUP_HOUR') || 3);
     return Number.isInteger(n) && n >= 0 && n <= 23 ? n : 3;
   },
+  /* AI deal checks: on once a provider and its key are set. */
+  get aiProvider() {
+    return settings.get('KTL_AI_PROVIDER');
+  },
+  get aiEnabled() {
+    return Boolean(settings.get('KTL_AI_PROVIDER') && settings.get('KTL_AI_API_KEY'));
+  },
   get timezone() {
     const tz = settings.get('KTL_TIMEZONE') || env.TZ || 'Europe/London';
     return validTimezone(tz) ? tz : 'Europe/London';

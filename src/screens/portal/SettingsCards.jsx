@@ -424,3 +424,91 @@ export function AppCard({ siteUrl = SERVER_URL }) {
     </section>
   );
 }
+
+/* AI deal search: which provider, its key, and optionally which model.
+   The key is the owner's own, so every search is billed to them — each
+   person gets a handful a day. */
+export function AiCard({ admin }) {
+  const { data, save } = admin;
+  const st = data?.settings;
+  const providers = data?.ai?.providers || {};
+  const [provider, setProvider] = useState(st?.aiProvider?.value || 'anthropic');
+  const [model, setModel] = useState(st?.aiModel?.value || '');
+  const [key, setKey] = useState('');
+  const { busy, run, feedback } = useSaver();
+  if (!data || !st?.aiProvider) return null;
+  const locked = st.aiProvider.source === 'container' || st.aiApiKey.source === 'container';
+  const on = data.ai?.enabled;
+  const chosen = providers[provider] || {};
+  const keyNeeded = !st.aiApiKey.set || provider !== st.aiProvider.value;
+
+  function saveAi() {
+    const changes = { aiProvider: provider, aiModel: model.trim() };
+    if (key.trim()) changes.aiApiKey = key.trim();
+    return run(async () => { await save(changes); setKey(''); }, 'Saved. Send a test to check the key works.');
+  }
+
+  return (
+    <section className="stack">
+      <div className="section-head"><h2>AI deal search</h2><span className="meta">{on ? 'On' : 'Optional'}</span></div>
+      <div className="card stack-sm">
+        <p className="body-sm">
+          Lets anyone in the household ask an AI to search the web for a better deal on a bill coming up for renewal.
+          It uses your own API key, so <strong>each search is billed to you</strong> — usually a few pence, more with the
+          biggest models. Everyone gets 10 a day.
+        </p>
+        <p className="body-sm">
+          The AI is only told the kind of bill, the provider, what it costs, when the deal ends, and a postcode area if
+          the person types one. Never names, emails or addresses.
+        </p>
+        {locked ? <FromContainer /> : (
+          <form className="stack-sm" onSubmit={(e) => { e.preventDefault(); saveAi(); }}>
+            <div className="field">
+              <label htmlFor="ai-provider">Provider</label>
+              <select className="input" id="ai-provider" value={provider} onChange={(e) => { setProvider(e.target.value); setModel(''); }}>
+                {Object.entries(providers).map(([id, p]) => <option key={id} value={id}>{p.label}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="ai-key">API key</label>
+              <input
+                className="input" id="ai-key" type="password" value={key} onChange={(e) => setKey(e.target.value)}
+                autoComplete="off" autoCapitalize="off" spellCheck="false"
+                placeholder={!keyNeeded ? 'Saved — type to replace' : chosen.keyHint || ''}
+              />
+              {chosen.console && (
+                <span className="field-help">Make one at <a href={chosen.console} target="_blank" rel="noopener noreferrer">{new URL(chosen.console).hostname}</a>. It stays on this server.</span>
+              )}
+            </div>
+            <div className="field">
+              <label htmlFor="ai-model">Model (optional)</label>
+              <input className="input" id="ai-model" value={model} onChange={(e) => setModel(e.target.value)} placeholder={chosen.model || ''} autoCapitalize="off" spellCheck="false" />
+              <span className="field-help">Leave empty for {chosen.model || 'the default'}. A smaller model is cheaper per search.</span>
+            </div>
+            <div className="row" style={{ gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+              <button type="submit" className="btn btn-secondary btn-sm" disabled={busy || (keyNeeded && !key.trim())}>Save</button>
+              {on && (
+                <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => run(async () => {
+                  const r = await apiFetch('/api/admin/ai-test', { method: 'POST' });
+                  if (!r.ok) throw new Error('The provider didn’t answer.');
+                }, 'The key works.')}>
+                  Send a test
+                </button>
+              )}
+              {(on || st.aiApiKey.set) && (
+                <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => run(async () => {
+                  await save({ aiProvider: '', aiApiKey: '', aiModel: '' });
+                  setKey('');
+                  setModel('');
+                }, 'Deal search is off, and the key is gone.')}>
+                  Turn off
+                </button>
+              )}
+            </div>
+          </form>
+        )}
+        {feedback}
+      </div>
+    </section>
+  );
+}

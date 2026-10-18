@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -740,5 +740,34 @@ describe('AndroidBills — variable bills record what they actually came to', ()
     const sheet = screen.getByRole('dialog', { name: /what did it come to\?/i });
     expect(within(sheet).getByText(/what it has come to before/i)).toBeInTheDocument();
     expect(within(sheet).getByText('£84.15')).toBeInTheDocument();
+  });
+});
+
+describe('AndroidBills — when the deal ends', () => {
+  beforeEach(() => { useKettle.mockReset(); });
+
+  it('saves the end date with a kind worked out from the name, and says when the reminder comes', async () => {
+    const user = userEvent.setup();
+    const addBill = vi.fn().mockResolvedValue(undefined);
+    renderBills({ addBill });
+    await openAddSheet(user);
+    await user.type(screen.getByLabelText(/what is it\?/i), 'Octopus Energy');
+    await user.type(screen.getByLabelText(/amount each time/i), '96.00');
+    fireEvent.change(screen.getByLabelText(/when does the deal end/i), { target: { value: '2027-03-31' } });
+    expect(screen.getByText(/remind you 6 weeks before/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/what kind of deal/i)).toHaveDisplayValue('Work it out (energy)');
+    await user.click(screen.getByRole('button', { name: /add and start reminders/i }));
+    expect(addBill).toHaveBeenCalledWith(expect.objectContaining({ renewsOn: '2027-03-31', renewalKind: 'energy' }));
+  });
+
+  it('leaves both empty when there’s no end date', async () => {
+    const user = userEvent.setup();
+    const addBill = vi.fn().mockResolvedValue(undefined);
+    renderBills({ addBill });
+    await openAddSheet(user);
+    await fillRequiredFields(user);
+    expect(screen.queryByLabelText(/what kind of deal/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /add and start reminders/i }));
+    expect(addBill).toHaveBeenCalledWith(expect.objectContaining({ renewsOn: null, renewalKind: null }));
   });
 });

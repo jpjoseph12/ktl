@@ -191,3 +191,32 @@ describe('update check', async () => {
     assert.equal(await updateStatus('1.1.0', { env: {}, fetchImpl: async () => { throw new Error('offline'); } }), null);
   });
 });
+
+describe('deal checks', () => {
+  let server;
+  let base;
+  before(async () => {
+    server = http.createServer(createHandler({ feed: { on: () => () => {} } }));
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    base = `http://127.0.0.1:${server.address().port}`;
+  });
+  after(() => server.close());
+
+  it('wants a signed-in person, and the admin test wants the owner', async () => {
+    const post = (p) => fetch(`${base}${p}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    assert.equal((await post('/api/deals/check')).status, 401);
+    assert.equal((await post('/api/admin/ai-test')).status, 401);
+    assert.equal((await fetch(`${base}/api/deals/check/00000000-0000-4000-8000-000000000000`)).status, 401);
+    assert.equal((await fetch(`${base}/api/deals/check/not-a-job`)).status, 404);
+  });
+
+  it('keeps the AI key secret, and says whether deal checks are on', async () => {
+    settings.update({ KTL_AI_PROVIDER: 'anthropic', KTL_AI_API_KEY: 'sk-ant-secret' });
+    assert.deepEqual(settings.describe().aiApiKey, { value: '', set: true, source: 'settings' });
+    assert.equal(config.aiEnabled, true);
+    const info = await (await fetch(`${base}/api/config`)).json();
+    assert.equal(info.ai, true);
+    settings.update({ KTL_AI_PROVIDER: '', KTL_AI_API_KEY: '' });
+    assert.equal(config.aiEnabled, false);
+  });
+});

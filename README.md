@@ -165,6 +165,23 @@ To use push with your own server:
    fingerprint, and to the Firebase Cloud Messaging and Firebase
    Installations APIs, and leave the project's other Firebase products off.
 
+### Renewals and AI deal search (optional)
+
+Any bill, shared or your own, can have the date its deal ends. Each phone
+reminds its owner in time to look around: energy six weeks before (when
+you can usually switch without exit fees), broadband and mobile four,
+insurance three, anything else two.
+
+If you add an AI provider on the admin page (**AI deal search**: Claude,
+OpenAI or Gemini, with your own API key), anyone in the household can tap
+**Check for a better deal** and the AI searches the web for current
+offers. Each search is billed to your key — usually pennies, more with the
+biggest models — and everyone gets 10 a day. The AI is told only the kind
+of bill, the provider, the cost, the end date and a postcode area if the
+person types one. Results for shared bills are kept (the latest five) for
+the household; results for personal bills are shown once and never
+stored.
+
 ## Reaching it from outside your network
 
 - **Cloudflare Tunnel** needs no open ports:
@@ -214,6 +231,7 @@ it as "set by the container".
 | `KTL_SMTP_HOST`, `_PORT`, `_USER`, `_PASS`, `_SENDER`, `_SENDER_NAME` | Email, for password resets. |
 | `CLOUDFLARE_TUNNEL_TOKEN` | Runs a Cloudflare Tunnel inside the container. |
 | `KTL_FCM_SERVICE_ACCOUNT` | A Firebase service-account key (JSON), for push. |
+| `KTL_AI_PROVIDER`, `KTL_AI_API_KEY`, `KTL_AI_MODEL` | AI deal search: `anthropic`, `openai` or `gemini`, your API key, and optionally a model. |
 | `KTL_TRUST_PROXY` | `true` behind a reverse proxy on another machine. |
 | `KTL_BACKUP_KEEP`, `KTL_BACKUP_HOUR` | Nightly backups to keep (14) and the hour to take them (3). |
 | `TZ` | Time zone, used for the backup time. Defaults to `Europe/London`. |

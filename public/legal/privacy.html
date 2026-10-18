@@ -27,7 +27,7 @@
 <body>
 <main>
   <h1>KTL privacy policy</h1>
-  <p class="meta">Effective 25 September 2026</p>
+  <p class="meta">Effective 18 October 2026</p>
 
   <p>KTL splits shared household bills between the people you live with, and separately helps you plan your own money. This policy explains what KTL stores, who can see it, and how to have it deleted. KTL has no ads, no analytics or tracking tools, and never sells your data.</p>
 
@@ -40,6 +40,8 @@
     <tr><td>Your name and email address</td><td>To sign you in (with a password, stored only as a secure hash) and to show your household who you are.</td><td>You, and the people in your household (your name only).</td></tr>
     <tr><td>Household bills, amounts, splits, money lent, payment status, the household name, and an activity log</td><td>The core of the app: working out who owes what and reminding people.</td><td>Everyone in that household.</td></tr>
     <tr><td>Your “Yours” figures: take-home pay, payday, personal bills, debts (balances, rates, minimum payments), savings and emergency fund</td><td>To show what’s left after bills and plan paying debt down.</td><td>Only you. It is stored separately from the household and is never shown to anyone else, including whether you use it.</td></tr>
+    <tr><td>When a bill’s deal ends, and what kind of deal it is (energy, broadband, mobile, insurance…)</td><td>To remind you in time to look for a better deal.</td><td>For a household bill, everyone in that household. For one of your own bills, only you.</td></tr>
+    <tr><td>Results of a “Check for a better deal” search on a household bill (the latest five)</td><td>So the household can see what was found.</td><td>Everyone in that household. A search on one of your own bills is shown only to you and never stored.</td></tr>
     <tr><td>A push notification token for your device</td><td>So you can be told when someone in your household does something.</td><td>No one — it’s only used to deliver notifications.</td></tr>
   </table>
   </div>
@@ -50,6 +52,7 @@
     <li><strong>Your KTL server</strong> stores all of the data above and handles sign-in. It runs wherever the server operator runs it.</li>
     <li><strong>Google Firebase Cloud Messaging</strong>, only if the server operator has turned on push notifications, delivers them using your device’s push token.</li>
     <li>An email delivery service, only if the server operator has set one up, sends password-reset emails.</li>
+    <li><strong>An AI provider</strong> (Anthropic, OpenAI or Google — whichever the server operator chose), only if the server operator has set one up and only when someone taps “Check for a better deal”. It’s sent what kind of bill it is, the provider’s name, what it costs, when the deal ends, and a postcode area if one is typed (such as M14) — never names, email addresses, full postcodes, or anything from “Yours” apart from that one bill. It searches the web to answer. The provider’s own privacy terms apply to what it’s sent.</li>
   </ul>
   <p>They process data only to provide those services. Use HTTPS to reach your server so data is encrypted in transit.</p>
 

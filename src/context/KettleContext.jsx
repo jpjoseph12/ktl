@@ -9,7 +9,7 @@ import {
   remainingShare, round2, sharesFromPercents
 } from '../lib/kettle';
 import { plannedReminders } from '../lib/reminders';
-import { cancelAllReminders, notifyNow, syncReminders } from '../lib/notifications';
+import { cancelAllReminders, notifyNow } from '../lib/notifications';
 import { isSnoozed, snoozeUntilLater } from '../lib/snooze';
 
 const KettleCtx = createContext(null);
@@ -58,6 +58,8 @@ function normalizeShared(row, shares, details, youId, otherMemberIds, table) {
     yourOutstanding: outstandingMap[youId] ?? yourShare,
     theirShare: round2(Number(row.total) - yourShare),
     endedOn: row.ended_on || null,
+    renewsOn: row.renews_on || null,
+    renewalKind: row.renewal_kind || null,
     due: isLending ? null : formatDue(row.due_date),
     dueSort: isLending ? row.occurred_on : row.due_date,
     date: isLending ? formatDue(row.occurred_on) : undefined,
@@ -462,7 +464,7 @@ export function KettleProvider({ children }) {
      means "use the equal-split default for however many members there are
      right now" — there's no more a single stored default once a household
      can have 3-6 people, since 100/N isn't a fixed number. */
-  const addBill = useCallback(async ({ name, total, payerId, day, needsDetails, splitPercents, frequencyUnit, frequencyCount }) => {
+  const addBill = useCallback(async ({ name, total, payerId, day, needsDetails, splitPercents, frequencyUnit, frequencyCount, renewsOn, renewalKind }) => {
     if (!householdId || !you) return;
     if (!payerId || !members.some((m) => m.id === payerId)) throw new Error('Choose who pays the provider.');
     const memberIds = members.map((m) => m.id);
@@ -482,6 +484,7 @@ export function KettleProvider({ children }) {
         due_date: dueDate, frequency: frequencyLabel(unit, count, day),
         frequency_unit: unit, frequency_count: count,
         status: 'scheduled', needs_details: !!needsDetails, created_by: you.id,
+        renews_on: renewsOn || null, renewal_kind: renewalKind || null,
         provider: logoMatch?.provider ?? null, logo: logoMatch?.logo ?? null,
         logo_w: logoMatch?.logoW ?? null, logo_h: logoMatch?.logoH ?? null
       })
@@ -787,7 +790,7 @@ export function KettleProvider({ children }) {
     await api.auth.signOut({ scope: 'local' });
   }, [you, members, removeMember]);
 
-  const updateBill = useCallback(async (id, { name, total, payerId, day, needsDetails, splitPercents, frequencyUnit, frequencyCount }) => {
+  const updateBill = useCallback(async (id, { name, total, payerId, day, needsDetails, splitPercents, frequencyUnit, frequencyCount, renewsOn, renewalKind }) => {
     if (!householdId || !you) return;
     const item = find(id);
     if (!item || item._table !== 'bills') return;
@@ -808,6 +811,7 @@ export function KettleProvider({ children }) {
         name, glyph, total, payer_id: payerId, due_date: dueDate,
         frequency: frequencyLabel(unit, count, day),
         frequency_unit: unit, frequency_count: count, needs_details: !!needsDetails,
+        renews_on: renewsOn || null, renewal_kind: renewalKind || null,
         provider: logoMatch?.provider ?? null, logo: logoMatch?.logo ?? null,
         logo_w: logoMatch?.logoW ?? null, logo_h: logoMatch?.logoH ?? null
       })
@@ -919,13 +923,9 @@ export function KettleProvider({ children }) {
     [plannedNotifications]
   );
 
-  /* Hand the plan to the OS whenever it changes. Local notifications fire
-     without the app running, so a user who never opens KTL still gets
-     told a bill is coming — which is the whole point of chase mode. */
-  useEffect(() => {
-    if (!householdId) return;
-    syncReminders(plannedNotifications).catch((err) => console.error('Could not schedule reminders', err));
-  }, [householdId, plannedNotifications]);
+  /* The plan reaches the OS through ReminderScheduler (components/), which
+     adds this person's private renewal reminders on the way — kept out of
+     here so nothing private ever enters the household's state. */
 
   /* Anything the OTHER people in the household do. Every meaningful action
      already writes an activity row naming who did it, so one subscription
@@ -1019,11 +1019,12 @@ export function KettleProvider({ children }) {
     removeMember,
     deleteAccount,
     updateReminders,
+    plannedNotifications,
     needsYou,
     snoozeItem,
     refreshNow,
     openCount
-  }), [loading, error, dataShape, you, partner, members, others, statusOf, setStatus, setFlag, flag, detailsIn, labelOf, find, all, balance, balances, cycleTotals, mode, setMode, renameHousehold, updateMyName, setPayoutRef, finishFirstRun, tracking, closedStatus, owedBreakdown, settleAll, settleWith, addBill, updateBill, removeBill, addLending, updateLending, removeLending, recordPayment, recordBillAmount, endBill, reopenBill, memberExitSummary, removeMember, deleteAccount, updateReminders, needsYou, snoozeItem, refreshNow, openCount]);
+  }), [loading, error, dataShape, you, partner, members, others, statusOf, setStatus, setFlag, flag, detailsIn, labelOf, find, all, balance, balances, cycleTotals, mode, setMode, renameHousehold, updateMyName, setPayoutRef, finishFirstRun, tracking, closedStatus, owedBreakdown, settleAll, settleWith, addBill, updateBill, removeBill, addLending, updateLending, removeLending, recordPayment, recordBillAmount, endBill, reopenBill, memberExitSummary, removeMember, deleteAccount, updateReminders, plannedNotifications, needsYou, snoozeItem, refreshNow, openCount]);
 
   return <KettleCtx.Provider value={value}>{children}</KettleCtx.Provider>;
 }

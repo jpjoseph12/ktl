@@ -3,7 +3,7 @@ import Icon from '../components/Icon';
 import PortalFrame, { useAdmin } from './portal/PortalFrame';
 import PeopleCard from './portal/PeopleCard';
 import { AccessSection, HouseholdSection, OverviewSection } from './portal/AdminSections';
-import { BackupsCard, EmailCard, PushCard, TunnelCard } from './portal/SettingsCards';
+import { AiCard, BackupsCard, EmailCard, PushCard, TunnelCard } from './portal/SettingsCards';
 import useIsTablet from '../lib/useIsTablet';
 
 /* Everything about this server, for whoever runs it (the household's
@@ -17,6 +17,7 @@ const SECTIONS = [
   { id: 'email', label: 'Email', icon: 'send' },
   { id: 'push', label: 'Push notifications', icon: 'bell' },
   { id: 'remote', label: 'Remote access', icon: 'signal' },
+  { id: 'ai', label: 'AI deal search', icon: 'trend' },
   { id: 'backups', label: 'Backups', icon: 'refresh' }
 ];
 
@@ -42,6 +43,7 @@ function Body({ id, admin }) {
   if (id === 'email') return <EmailCard admin={admin} />;
   if (id === 'push') return <PushCard admin={admin} />;
   if (id === 'remote') return <TunnelCard admin={admin} />;
+  if (id === 'ai') return <AiCard admin={admin} />;
   return <BackupsCard admin={admin} />;
 }
 

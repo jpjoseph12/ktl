@@ -246,7 +246,7 @@ function AlertsBody({ tablet = false }) {
           <ul className="list">
             {scheduled.length ? scheduled.map((s, i) => (
               <li className="item" key={i}>
-                <span className="glyph on-warm"><Icon name={s.kind === 'payment' ? 'send' : 'pencil'} size={18} /></span>
+                <span className="glyph on-warm"><Icon name={s.kind === 'payment' ? 'send' : s.kind === 'renewal' ? 'refresh' : 'pencil'} size={18} /></span>
                 <span className="grow">
                   <span className="item-title" style={{ display: 'block', fontWeight: 500 }}>{s.title}</span>
                   <span className="item-sub">{s.sub}</span>

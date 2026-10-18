@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Admin from './Admin';
@@ -18,12 +19,19 @@ const DATA = {
   version: '1.1.0', siteUrl: 'https://ktl.example.com', maxPeople: 6,
   household: { id: 'h1', name: 'Flat 4', mode: 'chase', reminders: null },
   people: [{ id: 'o1', name: 'Alex', email: 'alex@example.com', role: 'owner', hasPassword: true, inHousehold: true }],
-  settings: Object.fromEntries(['siteUrl', 'signup', 'smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'smtpSender', 'smtpSenderName', 'tunnelToken', 'trustProxy', 'backupHour', 'backupKeep', 'timezone']
+  settings: Object.fromEntries(['siteUrl', 'signup', 'smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'smtpSender', 'smtpSenderName', 'tunnelToken', 'trustProxy', 'backupHour', 'backupKeep', 'timezone', 'aiProvider', 'aiApiKey', 'aiModel']
     .map((k) => [k, { value: '', set: false, source: 'unset' }])),
   schedule: { hour: 3, keep: 14, timezone: 'Europe/London' },
   push: { configured: false },
   health: { healthy: true, database: true, auth: true, api: true },
-  backups: []
+  backups: [],
+  ai: {
+    enabled: false,
+    providers: {
+      anthropic: { label: 'Claude (Anthropic)', model: 'claude-opus-5-5', keyHint: 'sk-ant-…', console: 'https://console.anthropic.com/settings/keys' },
+      openai: { label: 'OpenAI', model: 'gpt-5.5', keyHint: 'sk-…', console: 'https://platform.openai.com/api-keys' }
+    }
+  }
 };
 
 const renderAdmin = (path) => render(
@@ -45,7 +53,7 @@ describe('Admin — every server setting, in sections', () => {
     desktop(false);
     renderAdmin('/admin');
     expect(await screen.findByText('Flat 4 · KTL 1.1.0')).toBeInTheDocument();
-    for (const name of ['Overview', 'Household', 'People', 'Sign-in & address', 'Email', 'Push notifications', 'Remote access', 'Backups']) {
+    for (const name of ['Overview', 'Household', 'People', 'Sign-in & address', 'Email', 'Push notifications', 'Remote access', 'AI deal search', 'Backups']) {
       expect(screen.getByRole('link', { name: new RegExp(name) })).toHaveAttribute('href', expect.stringMatching(/^\/admin\//));
     }
   });
@@ -72,5 +80,19 @@ describe('Admin — every server setting, in sections', () => {
     renderAdmin('/admin');
     expect(await screen.findByText(/Only the person who runs this server/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to KTL' })).toHaveAttribute('href', '/android/household');
+  });
+
+  it('sets up AI deal search with the owner’s own key, and says who pays', async () => {
+    desktop(false);
+    renderAdmin('/admin/ai');
+    expect(await screen.findByText(/each search is billed to you/i)).toBeInTheDocument();
+    const save = screen.getByRole('button', { name: 'Save' });
+    expect(save).toBeDisabled();
+    await userEvent.selectOptions(screen.getByLabelText('Provider'), 'openai');
+    expect(screen.getByLabelText(/^Model/)).toHaveAttribute('placeholder', 'gpt-5.5');
+    await userEvent.type(screen.getByLabelText('API key'), 'sk-test');
+    apiFetch.mockResolvedValueOnce({ ...DATA, ai: { ...DATA.ai, enabled: true } });
+    await userEvent.click(save);
+    expect(apiFetch).toHaveBeenCalledWith('/api/admin/settings', { method: 'PUT', body: { aiProvider: 'openai', aiModel: '', aiApiKey: 'sk-test' } });
   });
 });

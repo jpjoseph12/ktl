@@ -43,6 +43,9 @@ const DEFAULT_SETTINGS = {
   emergencySaved: 0, emergencyMonths: 3
 };
 
+/* App field names that differ from their personal_bills column. */
+const PERSONAL_COLUMNS = { renewsOn: 'renews_on', renewalKind: 'renewal_kind' };
+
 export function PrivateProvider({ children }) {
   const { user } = useAuth();
   const { data: kettleData } = useKettle();
@@ -93,7 +96,8 @@ export function PrivateProvider({ children }) {
       clearedAt: d.cleared_at || null
     })));
     setPersonalRows(personalRes.data.map((p) => ({
-      id: p.id, name: p.name, kind: p.kind, glyph: p.glyph, amount: Number(p.amount), day: p.day
+      id: p.id, name: p.name, kind: p.kind, glyph: p.glyph, amount: Number(p.amount), day: p.day,
+      renewsOn: p.renews_on || null, renewalKind: p.renewal_kind || null
     })));
     setSavings(savingsRes.data.map((s) => ({
       id: s.id, label: s.label, detail: s.detail, amount: Number(s.amount), shared: s.shared, applied: s.applied
@@ -248,7 +252,8 @@ export function PrivateProvider({ children }) {
 
   const setPersonal = useCallback(async (id, key, value) => {
     if (!user) return;
-    const { error } = await api.from('personal_bills').update({ [key]: value }).eq('id', id).eq('user_id', user.id);
+    const column = PERSONAL_COLUMNS[key] || key;
+    const { error } = await api.from('personal_bills').update({ [column]: value }).eq('id', id).eq('user_id', user.id);
     if (error) throw error;
     await refresh(user.id);
   }, [user, refresh]);
@@ -257,7 +262,8 @@ export function PrivateProvider({ children }) {
     if (!user) return;
     const { error } = await api.from('personal_bills').insert({
       user_id: user.id, name: bill.name, kind: bill.kind || 'Personal', glyph: bill.glyph || 'card',
-      amount: bill.amount, day: bill.day
+      amount: bill.amount, day: bill.day,
+      renews_on: bill.renewsOn || null, renewal_kind: bill.renewalKind || null
     });
     if (error) throw error;
     await refresh(user.id);

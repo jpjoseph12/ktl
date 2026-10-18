@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createReadStream, createWriteStream, mkdirSync, openSync, readFileSync, readSync, closeSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { config, validTimezone } from './config.mjs';
@@ -12,6 +12,7 @@ import { createInvite, findInvite, inviteMessage, inviteState, openInvites, toke
 import { parseServiceAccount, pushStatus } from './push.mjs';
 import { requestRestart, restoreBackup } from './restore.mjs';
 import { updateStatus } from './updates.mjs';
+import { findDeals, kindFromName, PROVIDERS, testProvider } from './ai.mjs';
 
 /* KTL's own API, behind the web setup and admin pages:
  *
@@ -40,6 +41,9 @@ import { updateStatus } from './updates.mjs';
  *   POST /api/invite/redeem            use an invite to choose a password
  *   POST /api/account/password-status  does this account have no password yet?
  *   POST /api/account/delete           delete your own account
+ *   POST /api/deals/check              start an AI search for a better deal
+ *   GET  /api/deals/check/:id          how that search is getting on
+ *   POST /api/admin/ai-test            does the saved AI key work?
  *
  * /api/admin/* is for the household's owner only — the person who set the
  * server up — checked from their sign-in token on every request. */
@@ -47,6 +51,10 @@ import { updateStatus } from './updates.mjs';
 const MAX_BODY = 64 * 1024;
 const MAX_UPLOAD = 500 * 1024 * 1024;
 const INVITE_TRIES = new Map(); // ip -> { count, until }, for /api/invite/*
+const DEAL_CHECKS = new Map(); // user id -> { count, until }: deal checks spend the owner's AI credit
+const DEAL_CHECKS_PER_DAY = 10;
+const DEAL_JOBS = new Map(); // job id -> { userId, status, value | error, expires }
+const AI_ERROR_STATUS = { ai_off: 409, ai_bad_key: 502, ai_rate_limited: 429, ai_refused: 422, ai_timeout: 504, ai_failed: 502 };
 const ATTEMPTS = new Map(); // ip -> { count, until }
 const LOCK_AFTER = 5;
 const LOCK_MS = 15 * 60 * 1000;
@@ -121,7 +129,7 @@ export async function serverInfo() {
   try { ready = Boolean(await serverHouseholdId()); } catch { /* database still starting */ }
   // push: whether this server can send push, so the app only asks for
   // notification permission and registers when it's worth it.
-  return { app: 'ktl', version: appVersion(), ready, email: config.emailEnabled, signup: config.allowSignup, push: pushStatus().configured };
+  return { app: 'ktl', version: appVersion(), ready, email: config.emailEnabled, signup: config.allowSignup, push: pushStatus().configured, ai: config.aiEnabled };
 }
 
 /* Everything tied to an account, then the account itself. Refuses while
@@ -191,6 +199,7 @@ async function overview(hid) {
     push: pushStatus(),
     health,
     update,
+    ai: { providers: PROVIDERS, enabled: config.aiEnabled },
     backups
   };
 }
@@ -675,6 +684,17 @@ export function createPortalApi({ clientIp, sendJson, onPushChanged = () => {} }
         if (!Number.isInteger(n) || n < 0 || n > 365) throw new HttpError(400, 'bad_keep', 'Keep between 0 (nightly backups off) and 365.');
         changes.KTL_BACKUP_KEEP = String(n);
       }
+      if ('aiProvider' in body) {
+        const p = String(body.aiProvider || '');
+        if (p && !PROVIDERS[p]) throw new HttpError(400, 'bad_provider', 'Choose Claude, OpenAI or Gemini.');
+        changes.KTL_AI_PROVIDER = p;
+      }
+      if ('aiModel' in body) {
+        const m = String(body.aiModel || '').trim();
+        if (m && !/^[\w.:/-]{1,80}$/.test(m)) throw new HttpError(400, 'bad_model', 'That doesn’t look like a model name.');
+        changes.KTL_AI_MODEL = m;
+      }
+      if ('aiApiKey' in body) changes.KTL_AI_API_KEY = String(body.aiApiKey || '').trim();
       if ('timezone' in body) {
         const tz = String(body.timezone || '').trim();
         if (tz && !validTimezone(tz)) throw new HttpError(400, 'bad_timezone', 'That isn’t a time zone — try something like Europe/London.');
@@ -683,6 +703,107 @@ export function createPortalApi({ clientIp, sendJson, onPushChanged = () => {} }
       const changed = settings.update(changes);
       if (settings.needsRestart(changed)) await settings.waitUntilApplied();
       return overview(hid);
+    },
+
+    'POST /api/admin/ai-test': async (req) => {
+      await requireOwner(req);
+      try {
+        return await testProvider({ provider: config.aiProvider, apiKey: settings.get('KTL_AI_API_KEY'), model: settings.get('KTL_AI_MODEL') });
+      } catch (err) {
+        throw new HttpError(AI_ERROR_STATUS[err.code] || 502, err.code || 'ai_failed', err.message);
+      }
+    },
+
+    /* Asks the AI provider to look for a better deal on one bill. Anyone in
+       the household can, on a shared bill (the result is kept for them all)
+       or on their own personal bill (the result is only returned, never
+       stored). Ten a day each, since it spends the owner's AI credit. */
+    /* A search takes anything up to a couple of minutes — longer than a
+       tunnel or proxy keeps a request open — so it runs here in the
+       background and the app asks for the answer every few seconds. */
+    'POST /api/deals/check': async (req) => {
+      const claims = verifyJwt(bearer(req), config.jwtSecret);
+      if (!claims?.sub || !UUID.test(claims.sub)) throw new HttpError(401, 'not_signed_in', 'Log in first.');
+      if (!config.aiEnabled) throw new HttpError(409, 'ai_off', 'Whoever runs this server hasn’t set up an AI provider.');
+      const body = await readJson(req);
+      const typed = String(body.area || '').trim();
+      const area = /^[A-Za-z]{1,2}\d[A-Za-z\d]?$/.test(typed) ? typed.toUpperCase() : '';
+      const db = getPool();
+      const hid = await serverHouseholdId(db);
+      const { rows: [member] } = await db.query('select 1 from public.household_members where household_id = $1 and user_id = $2', [hid, claims.sub]);
+      if (!member) throw new HttpError(403, 'not_in_household', 'Only people in the household can do that.');
+
+      let bill;
+      let shared = false;
+      if (body.billId && UUID.test(String(body.billId))) {
+        const { rows: [b] } = await db.query(
+          'select id, name, provider, glyph, total, frequency_unit, renews_on::text as renews_on, renewal_kind from public.bills where id = $1 and household_id = $2',
+          [body.billId, hid]
+        );
+        if (!b) throw new HttpError(404, 'no_such_bill', 'That bill isn’t there any more.');
+        bill = { kind: b.renewal_kind || kindFromName(b.name, b.glyph), name: b.name, provider: b.provider, amount: Number(b.total), frequencyUnit: b.frequency_unit, renewsOn: b.renews_on };
+        shared = true;
+      } else if (body.personalBillId && UUID.test(String(body.personalBillId))) {
+        const { rows: [b] } = await db.query(
+          'select id, name, glyph, amount, renews_on::text as renews_on, renewal_kind from public.personal_bills where id = $1 and user_id = $2',
+          [body.personalBillId, claims.sub]
+        );
+        if (!b) throw new HttpError(404, 'no_such_bill', 'That bill isn’t there any more.');
+        bill = { kind: b.renewal_kind || kindFromName(b.name, b.glyph), name: b.name, provider: null, amount: Number(b.amount), frequencyUnit: 'month', renewsOn: b.renews_on };
+      } else {
+        throw new HttpError(400, 'no_bill', 'Which bill?');
+      }
+
+      const now = Date.now();
+      for (const [id, job] of DEAL_JOBS) if (job.expires < now) DEAL_JOBS.delete(id);
+      if ([...DEAL_JOBS.values()].some((j) => j.userId === claims.sub && j.status === 'running')) {
+        throw new HttpError(409, 'already_checking', 'You already have a deal check running — give it a minute.');
+      }
+      const seen = DEAL_CHECKS.get(claims.sub);
+      const entry = seen && seen.until > now ? seen : { count: 0, until: now + 24 * 60 * 60 * 1000 };
+      if (entry.count >= DEAL_CHECKS_PER_DAY) throw new HttpError(429, 'over_daily_limit', `That’s ${DEAL_CHECKS_PER_DAY} deal checks today — try again tomorrow.`);
+      entry.count += 1;
+      DEAL_CHECKS.set(claims.sub, entry);
+
+      const provider = config.aiProvider;
+      const model = settings.get('KTL_AI_MODEL') || PROVIDERS[provider].model;
+      const jobId = randomUUID();
+      const job = { userId: claims.sub, status: 'running', expires: now + 15 * 60 * 1000 };
+      DEAL_JOBS.set(jobId, job);
+      (async () => {
+        try {
+          const result = await findDeals({ provider, apiKey: settings.get('KTL_AI_API_KEY'), model, bill, area, timeZone: config.timezone });
+          const checkedAt = new Date().toISOString();
+          if (shared) {
+            await db.query(
+              'insert into public.deal_checks (household_id, bill_id, checked_by, checked_at, provider, model, result) values ($1, $2, $3, $4, $5, $6, $7)',
+              [hid, body.billId, claims.sub, checkedAt, provider, model, JSON.stringify(result)]
+            );
+            await db.query(
+              'delete from public.deal_checks where bill_id = $1 and id not in (select id from public.deal_checks where bill_id = $1 order by checked_at desc limit 5)',
+              [body.billId]
+            );
+          }
+          Object.assign(job, { status: 'done', value: { result, checkedAt, provider: PROVIDERS[provider].label, model, kept: shared, left: DEAL_CHECKS_PER_DAY - entry.count } });
+        } catch (err) {
+          entry.count = Math.max(0, entry.count - 1); // a failed search doesn't count
+          if (!err.code) console.error('gateway: deal check failed', err.message);
+          Object.assign(job, { status: 'failed', error: err.code || 'ai_failed', message: err.code ? err.message : 'The search didn’t work. Try again in a moment.' });
+        }
+      })();
+      return { job: jobId, status: 'running' };
+    },
+
+    'GET /api/deals/check/:id': async (req, { id }) => {
+      const claims = verifyJwt(bearer(req), config.jwtSecret);
+      if (!claims?.sub) throw new HttpError(401, 'not_signed_in', 'Log in first.');
+      const job = DEAL_JOBS.get(id);
+      // Someone else's job looks the same as one that never existed.
+      if (!job || job.userId !== claims.sub) throw new HttpError(404, 'no_such_check', 'That check has finished or expired. Start a new one.');
+      if (job.status === 'running') return { status: 'running' };
+      DEAL_JOBS.delete(id);
+      if (job.status === 'failed') throw new HttpError(AI_ERROR_STATUS[job.error] || 502, job.error, job.message);
+      return { status: 'done', ...job.value };
     },
 
     'POST /api/admin/email-test': async (req) => {
@@ -780,13 +901,15 @@ export function createPortalApi({ clientIp, sendJson, onPushChanged = () => {} }
     try {
       const people = /^\/api\/admin\/people\/([^/]+)(\/link|\/invite|\/owner)?$/.exec(p);
       if (people && !UUID.test(people[1])) throw new HttpError(404, 'not_found', 'Not found.');
+      const deal = /^\/api\/deals\/check\/([^/]+)$/.exec(p);
+      if (deal && !UUID.test(deal[1])) throw new HttpError(404, 'no_such_check', 'That check has finished or expired. Start a new one.');
       const backup = /^\/api\/admin\/backups\/([\w.-]+\.dump)$/.exec(p);
       if (backup && req.method === 'GET') return await downloadBackup(req, res, backup[1]);
 
-      const route = people ? `/api/admin/people/:id${people[2] || ''}` : p;
+      const route = people ? `/api/admin/people/:id${people[2] || ''}` : deal ? '/api/deals/check/:id' : p;
       const handler = handlers[`${req.method} ${route}`];
       if (!handler) throw new HttpError(404, 'not_found', 'Not found.');
-      const result = await handler(req, people ? { id: people[1] } : {});
+      const result = await handler(req, people ? { id: people[1] } : deal ? { id: deal[1] } : {});
       return sendJson(req, res, 200, result);
     } catch (err) {
       if (err instanceof HttpError) return sendJson(req, res, err.status, { error: err.code, message: err.message });
