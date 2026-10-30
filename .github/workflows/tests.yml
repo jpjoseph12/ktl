@@ -79,9 +79,11 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # Pinned: on Node 22.23.4 every WebdriverIO worker dies at start-up
+      # with "write EINVAL" sending to its parent, before a test runs.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.23.3
           cache: npm
 
       - uses: actions/setup-java@v4
