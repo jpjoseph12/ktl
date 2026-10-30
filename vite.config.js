@@ -17,6 +17,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.js'],
     // The server's gateway has its own node:test suite (cd selfhost/gateway && npm test).
-    exclude: [...configDefaults.exclude, 'selfhost/**', 'e2e/**'],
+    // .claude/ can hold local agent worktrees: whole copies of the repo.
+    exclude: [...configDefaults.exclude, 'selfhost/**', 'e2e/**', '.claude/**'],
   },
 })

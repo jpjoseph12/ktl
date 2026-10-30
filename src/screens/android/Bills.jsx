@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import PhoneShell from '../../components/PhoneShell';
 import AndroidNavBar from '../../components/android/AndroidNavBar';
 import Sheet from '../../components/Sheet';
+import MdDialog from '../../components/MdDialog';
 import Icon from '../../components/Icon';
 import Pill from '../../components/Pill';
 import SuggestInput from '../../components/SuggestInput';
@@ -10,7 +11,7 @@ import AddChooser, { ADD_CHOOSER_ID } from '../../components/AddChooser';
 import PullToRefresh from '../../components/PullToRefresh';
 import { useKettle } from '../../context/KettleContext';
 import { useScreen } from '../../context/ScreenContext';
-import { COMMON_SUBSCRIPTIONS, FREQUENCIES, equalShares, formatDue, frequencyKey, money, round2 } from '../../lib/kettle';
+import { COMMON_SUBSCRIPTIONS, FREQUENCIES, OPEN, equalShares, formatDue, frequencyKey, money, round2 } from '../../lib/kettle';
 import { useDismissibleNotice } from '../../lib/dismissible';
 import { parseBillAmount } from '../../lib/validation';
 import { useWalkthrough } from '../../context/WalkthroughContext';
@@ -225,8 +226,10 @@ function BillsBody({ tablet = false }) {
      they only surface under the Ended filter — otherwise a cancelled
      subscription would clutter "Every month" forever. */
   function visible(item, isLending) {
-    if (filter === 'ended') return !!item.endedOn;
-    if (item.endedOn) return false;
+    // A settled one-off is done with, like an ended bill: it moves to Ended.
+    const finished = isLending ? item.status === 'settled' : !!item.endedOn;
+    if (filter === 'ended') return finished;
+    if (finished) return false;
     return filter === 'all' || tagsFor(item, isLending).includes(filter);
   }
   const RECURRING_PREVIEW_COUNT = 6;
@@ -269,11 +272,35 @@ function BillsBody({ tablet = false }) {
     );
   }
 
+  /* What "Settle every one-off" would close, so the numbers are seen
+     before anything changes. */
+  const openOneOffs = K.data.lending.filter((i) => i.status !== 'settled');
+  const oneOffSums = openOneOffs.reduce((acc, i) => {
+    const left = (uid) => i.outstanding?.[uid] ?? i.shares?.[uid] ?? 0;
+    if (i.payerId === K.you?.id) {
+      Object.keys(i.shares || {}).forEach((uid) => { if (uid !== K.you?.id) acc.owedToYou += left(uid); });
+    } else {
+      acc.youOwe += left(K.you?.id);
+    }
+    return acc;
+  }, { owedToYou: 0, youOwe: 0 });
+
+  async function clearOneOffs() {
+    try {
+      const { count: closed } = await K.clearOneOffs();
+      close();
+      toast(closed ? `Settled ${closed} ${closed === 1 ? 'one-off' : 'one-offs'}. They’re under Ended.` : 'Nothing to settle.');
+    } catch (err) {
+      close();
+      toast(err.message || 'Couldn’t settle those. Try again.');
+    }
+  }
+
   const selected = selectedId ? K.find(selectedId) : null;
   /* The tablet pane always matches the list beside it: until a row is
      picked — or once the picked one is removed or filtered out — it shows
      the first bill the current filter leaves visible. */
-  const lendingShown = filter === 'all' || filter === 'one-off' ? visibleLending : [];
+  const lendingShown = filter === 'all' || filter === 'one-off' || filter === 'ended' ? visibleLending : [];
   const listed = [...visibleRecurring, ...lendingShown];
   const detailItem = tablet
     ? (listed.find((i) => i.id === selected?.id) || listed[0] || null)
@@ -382,6 +409,19 @@ function BillsBody({ tablet = false }) {
         <button className={'btn btn-primary' + blk} onClick={async () => { await K.setStatus(b.id, 'settled'); close(); toast('Settled.'); }}>
           Confirm {money(share)} arrived
         </button>
+      );
+    } else if (isLending && b.payer === 'you' && OPEN[s]) {
+      /* Money lent to someone: often it's handed back in person, so the
+         lender can close it themselves rather than wait for a "sent". */
+      action = (
+        <>
+          <button className={'btn btn-primary' + blk} onClick={async () => { await K.setStatus(b.id, 'settled', `${b.name} was paid back`); close(); toast('Settled. It’s moved to Ended.'); }}>
+            I’ve been paid back
+          </button>
+          <button className={'btn btn-secondary' + blk} onClick={() => { close(); toast(`Reminder sent to ${reminderTarget}.`); }}>
+            Send a reminder now
+          </button>
+        </>
       );
     } else if (s === 'awaiting-details') {
       action = <Link className={'btn btn-primary' + blk} to="/android/home">Add your {(b.detailsLabel || 'details').toLowerCase()}</Link>;
@@ -751,6 +791,18 @@ function BillsBody({ tablet = false }) {
             <button className="btn btn-secondary btn-block btn-sm" onClick={openAddLending}>
               <Icon name="plus" size={16} />Add money lent
             </button>
+            {openOneOffs.length > 0 && (
+              <button className="btn btn-ghost btn-block btn-sm" onClick={() => open('dialog-clear-oneoffs')}>
+                Settle every one-off
+              </button>
+            )}
+          </section>
+        )}
+
+        {filter === 'ended' && visibleLending.length > 0 && (
+          <section className="stack">
+            <div className="section-head"><h2>Settled one-offs</h2><span className="meta">Kept for the history</span></div>
+            <div className={listClass}>{visibleLending.map((b) => row(b, true))}</div>
           </section>
         )}
 
@@ -959,6 +1011,25 @@ function BillsBody({ tablet = false }) {
           <button className="btn btn-ghost btn-block" onClick={() => { resetAddForm(); close(); }}>Cancel</button>
         </div>
       </Sheet>
+
+      <MdDialog id="dialog-clear-oneoffs" titleId="dialog-clear-oneoffs-title">
+        <h2 id="dialog-clear-oneoffs-title">Settle every one-off?</h2>
+        <p className="body-sm">
+          For when it’s all squared up between you. Each one closes as settled and moves to Ended, where its history stays.
+          Everyone in the household sees that you did it.
+        </p>
+        <div style={{ marginTop: 'var(--space-4)' }}>
+          <dl style={{ margin: 0 }}>
+            <div className="kv"><dt>One-offs to close</dt><dd className="num">{openOneOffs.length}</dd></div>
+            <div className="kv"><dt>Owed to you</dt><dd className="num">{money(round2(oneOffSums.owedToYou))}</dd></div>
+            <div className="kv"><dt>You owe</dt><dd className="num">{money(round2(oneOffSums.youOwe))}</dd></div>
+          </dl>
+        </div>
+        <div className="dialog-actions">
+          <button className="btn btn-ghost btn-sm" onClick={close}>Not yet</button>
+          <button className="btn btn-primary btn-sm" onClick={clearOneOffs}>Settle all</button>
+        </div>
+      </MdDialog>
 
       <Sheet id="sheet-lend" titleId="sheet-lend-title">
         <div className="sheet-head">

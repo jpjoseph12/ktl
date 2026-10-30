@@ -771,3 +771,68 @@ describe('AndroidBills — when the deal ends', () => {
     expect(addBill).toHaveBeenCalledWith(expect.objectContaining({ renewsOn: null, renewalKind: null }));
   });
 });
+
+describe('AndroidBills — clearing one-offs', () => {
+  beforeEach(() => { useKettle.mockReset(); });
+
+  const lent = (overrides = {}) => ({
+    id: 'l1', _table: 'lending', name: 'Takeaway', glyph: 'cart', total: 40, yourShare: 0, theirShare: 40,
+    payer: 'you', payerId: 'me', shares: { 'partner-1': 40 }, outstanding: { 'partner-1': 40 }, details: {},
+    date: '1 Sep', status: 'payment-due', note: null,
+    ...overrides
+  });
+  const borrowed = lent({
+    id: 'l2', name: 'Train tickets', total: 25, yourShare: 25, theirShare: 0, payer: 'partner', payerId: 'partner-1',
+    shares: { me: 25 }, outstanding: { me: 25 }
+  });
+
+  it('moves a settled one-off out of the list and under Ended', async () => {
+    const user = userEvent.setup();
+    renderBills({ data: { ...baseKettle().data, lending: [lent({ status: 'settled' })] } });
+    expect(screen.queryByText('Takeaway')).not.toBeInTheDocument();
+    expect(screen.getByText('Nothing lent right now.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^ended$/i }));
+    expect(screen.getByRole('heading', { name: 'Settled one-offs' })).toBeInTheDocument();
+    expect(screen.getByText('Takeaway')).toBeInTheDocument();
+  });
+
+  it('lets whoever lent it say they’ve been paid back, without waiting for a “sent”', async () => {
+    const user = userEvent.setup();
+    const item = lent();
+    const setStatus = vi.fn().mockResolvedValue(undefined);
+    renderBills({ data: { ...baseKettle().data, lending: [item] }, find: () => item, setStatus });
+
+    await user.click(screen.getByRole('button', { name: /takeaway/i }));
+    await user.click(screen.getByRole('button', { name: /i’ve been paid back/i }));
+    expect(setStatus).toHaveBeenCalledWith('l1', 'settled', 'Takeaway was paid back');
+  });
+
+  it('doesn’t let the person who owes it mark it paid back', async () => {
+    const user = userEvent.setup();
+    renderBills({ data: { ...baseKettle().data, lending: [borrowed] }, find: () => borrowed });
+    await user.click(screen.getByRole('button', { name: /train tickets/i }));
+    expect(screen.queryByRole('button', { name: /i’ve been paid back/i })).not.toBeInTheDocument();
+  });
+
+  it('settles every open one-off at once, after showing both directions', async () => {
+    const user = userEvent.setup();
+    const clearOneOffs = vi.fn().mockResolvedValue({ count: 2 });
+    renderBills({ data: { ...baseKettle().data, lending: [lent(), borrowed, lent({ id: 'l3', name: 'Old one', status: 'settled' })] }, clearOneOffs });
+
+    await user.click(screen.getByRole('button', { name: /settle every one-off/i }));
+    const dialog = screen.getByRole('alertdialog', { name: /settle every one-off\?/i });
+    expect(within(dialog).getByText('One-offs to close').nextSibling).toHaveTextContent('2');
+    expect(within(dialog).getByText('Owed to you').nextSibling).toHaveTextContent('£40.00');
+    expect(within(dialog).getByText('You owe').nextSibling).toHaveTextContent('£25.00');
+
+    await user.click(within(dialog).getByRole('button', { name: 'Settle all' }));
+    expect(clearOneOffs).toHaveBeenCalled();
+  });
+
+  it('has nothing to settle when every one-off is already settled', () => {
+    renderBills({ data: { ...baseKettle().data, lending: [lent({ status: 'settled' })] } });
+    expect(screen.queryByRole('button', { name: /settle every one-off/i })).not.toBeInTheDocument();
+  });
+});
+

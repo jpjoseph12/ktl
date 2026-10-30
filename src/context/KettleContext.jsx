@@ -462,6 +462,22 @@ export function KettleProvider({ children }) {
     return { status: next, mine: mine.length, offset: offset.length };
   }, [all, closedStatus, householdId, logActivity, members, refresh, you]);
 
+  /* One-offs don't roll on to a next month the way bills do, so without
+     this they'd sit in the list for good once everyone's squared up in
+     real life. Closes every one-off still open, whichever way the money
+     went, in one go — the rows stay, settled, for the history. It's
+     logged like any settle-up, so everyone else hears about it. */
+  const clearOneOffs = useCallback(async () => {
+    if (!householdId || !you) return { count: 0 };
+    const open = lending.filter((i) => i.status !== 'settled');
+    if (!open.length) return { count: 0 };
+    const { error } = await api.from('lending').update({ status: 'settled' }).in('id', open.map((i) => i.id));
+    if (error) throw error;
+    await logActivity(`Settled every one-off — ${open.length} ${open.length === 1 ? 'item' : 'items'} closed`, 'Settled');
+    await refresh(householdId, you.id);
+    return { count: open.length };
+  }, [householdId, you, lending, logActivity, refresh]);
+
   /* Compat wrapper: settles with the first other household member. Kept
      only for callers not yet upgraded to name a specific counterparty. */
   const settleAll = useCallback((scope) => settleWith(members.find((m) => m.id !== you?.id)?.id, scope), [settleWith, members, you]);
@@ -1012,6 +1028,7 @@ export function KettleProvider({ children }) {
     owedBreakdown,
     settleAll,
     settleWith,
+    clearOneOffs,
     addBill,
     updateBill,
     removeBill,
@@ -1031,7 +1048,7 @@ export function KettleProvider({ children }) {
     snoozeItem,
     refreshNow,
     openCount
-  }), [loading, error, dataShape, you, partner, members, others, statusOf, setStatus, setFlag, flag, detailsIn, labelOf, find, all, balance, balances, cycleTotals, mode, setMode, renameHousehold, updateMyName, setPayoutRef, finishFirstRun, tracking, closedStatus, owedBreakdown, settleAll, settleWith, addBill, updateBill, removeBill, addLending, updateLending, removeLending, recordPayment, recordBillAmount, endBill, reopenBill, memberExitSummary, removeMember, deleteAccount, updateReminders, plannedNotifications, needsYou, snoozeItem, refreshNow, openCount]);
+  }), [loading, error, dataShape, you, partner, members, others, statusOf, setStatus, setFlag, flag, detailsIn, labelOf, find, all, balance, balances, cycleTotals, mode, setMode, renameHousehold, updateMyName, setPayoutRef, finishFirstRun, tracking, closedStatus, owedBreakdown, settleAll, settleWith, clearOneOffs, addBill, updateBill, removeBill, addLending, updateLending, removeLending, recordPayment, recordBillAmount, endBill, reopenBill, memberExitSummary, removeMember, deleteAccount, updateReminders, plannedNotifications, needsYou, snoozeItem, refreshNow, openCount]);
 
   return <KettleCtx.Provider value={value}>{children}</KettleCtx.Provider>;
 }
