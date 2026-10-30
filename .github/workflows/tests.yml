@@ -51,7 +51,10 @@ jobs:
 
   e2e-tests:
     name: End-to-end tests (Appium, ${{ matrix.device }})
-    runs-on: ubuntu-latest
+    # Pinned: on ubuntu-26.04 (ubuntu-latest from late October 2026) every
+    # WebdriverIO worker dies at start-up with "write EINVAL" on its first
+    # message to the parent, before a single test runs.
+    runs-on: ubuntu-24.04
     # The app switches to a split-view layout on tablets, so the same suite
     # runs against both a phone and a landscape tablet. fail-fast is off so
     # one layout breaking still reports how the other one did.
@@ -79,11 +82,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      # Pinned: on Node 22.23.4 every WebdriverIO worker dies at start-up
-      # with "write EINVAL" sending to its parent, before a test runs.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22.23.3
+          node-version: 22
           cache: npm
 
       - uses: actions/setup-java@v4
