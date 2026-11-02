@@ -436,7 +436,16 @@ export function daysSincePayday(paydayStr, today) {
    individual's own credit history, and these figures drift as providers
    reprice, so every suggestion this powers must be shown next to an
    explicit "this is a general rate, check your real statement" warning
-   in the UI — never silently applied as fact. */
+   in the UI — never silently applied as fact.
+
+   Last verified: November 2026. Checked each entry's representative APR
+   against current issuer/comparison-site pages; none had moved enough to
+   warrant a change this round. A few providers currently publish
+   conflicting or undated figures across sources (Halifax, Amex, Aqua,
+   John Lewis Partnership Card, Very/Littlewoods, PayPal Credit) and
+   Laybuy's UK availability is in question — left as-is pending a
+   higher-confidence source rather than guessing. See the PR for this
+   refresh for the full source list. */
 export const STANDARD_APR = [
   { pattern: /barclaycard/i, label: 'Barclaycard', apr: 28.9 },
   { pattern: /halifax/i, label: 'Halifax', apr: 24.9 },
